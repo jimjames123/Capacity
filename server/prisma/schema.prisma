@@ -1,0 +1,135 @@
+// CapacitySpot — CPD Rail data model
+// SQLite (via Prisma). SQLite has no native enums, so status/role/format
+// fields are strings with the allowed values documented alongside them.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  passwordHash     String
+  name             String
+  // MEMBER | ADMIN | PROVIDER | ORG
+  role             String   @default("MEMBER")
+  profession       String?  // HR | Finance | Engineering | Marketing | Cross-industry
+  membershipNo     String?  // e.g. HRM-2024-0417
+  professionalBody String?  // e.g. Human Resource Managers' Association
+  jobTitle         String?
+  organisation     String?
+  onboarded        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  cycles      Cycle[]
+  entries     CpdEntry[]
+  enrollments Enrollment[]
+}
+
+model Cycle {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label          String   // e.g. "Jan 2026 – Dec 2026"
+  startDate      DateTime
+  endDate        DateTime
+  requiredPoints Int      @default(12)
+  isCurrent      Boolean  @default(false)
+  certRef        String?  // e.g. CPD-2025-HRM-0417 (issued once complete)
+  registrarName  String?
+  issuedAt       DateTime?
+
+  entries CpdEntry[]
+
+  @@index([userId])
+}
+
+model CpdEntry {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cycleId       String
+  cycle         Cycle    @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  title         String
+  // COURSE | WORKSHOP | CONFERENCE | SELF_STUDY | MENTORING | WEBINAR | OTHER
+  type          String
+  activityDate  DateTime
+  pointsClaimed Float
+  // VERIFIED | PENDING | NEEDS_PROOF | REJECTED
+  status        String   @default("PENDING")
+  proofFileName String?
+  note          String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([cycleId])
+}
+
+model Provider {
+  id            String   @id @default(cuid())
+  name          String
+  initials      String
+  type          String   @default("Training company") // Training company | Individual consultant | Institution
+  verified      Boolean  @default(true)
+  rating        Float    @default(4.8)
+  meta          String?  // e.g. "Kampala · 14 courses"
+  bio           String?
+  createdAt     DateTime @default(now())
+
+  courses Course[]
+}
+
+model Course {
+  id           String   @id @default(cuid())
+  providerId   String
+  provider     Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  title        String
+  description  String
+  profession   String   // HR | Finance | Engineering | Marketing | Cross-industry
+  // IN_PERSON | ONLINE | HYBRID
+  format       String
+  points       Float    @default(0)
+  rating       Float    @default(4.8)
+  reviewsCount Int      @default(0)
+  schedule     String   // e.g. "Starts 4 Mar · 3 days"
+  fee          String   // e.g. "UGX 450,000" or "Free"
+  seats        Int      @default(30)
+  verified     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  reviews     Review[]
+  enrollments Enrollment[]
+
+  @@index([profession])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  name      String
+  stars     Int      @default(5)
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([courseId])
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  // ENROLLED | COMPLETED | CANCELLED
+  status    String   @default("ENROLLED")
+  createdAt DateTime @default(now())
+
+  @@unique([userId, courseId])
+  @@index([userId])
+}
