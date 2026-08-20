@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { Logo } from "../components/ui";
 import { ApiError } from "../lib/api";
+import { homePathForUser } from "../lib/nav";
 
 const PROFESSIONS = ["HR", "Finance", "Engineering", "Marketing", "Cross-industry"];
 
@@ -26,7 +27,8 @@ export default function Onboard() {
   const [busy, setBusy] = useState(false);
 
   if (!user) return <Navigate to="/signin" replace />;
-  if (user.onboarded) return <Navigate to="/app" replace />;
+  if (user.onboarded || user.role === "ADMIN")
+    return <Navigate to={homePathForUser(user)} replace />;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();

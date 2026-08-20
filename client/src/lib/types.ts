@@ -114,6 +114,64 @@ export interface Enrollment {
   course: Course;
 }
 
+export interface AdminStats {
+  members: number;
+  providers: number;
+  courses: number;
+  certificatesIssued: number;
+  awaitingReview: number;
+  needsProof: number;
+  verified: number;
+  rejected: number;
+}
+
+export interface AdminMemberRow {
+  id: string;
+  name: string;
+  email: string;
+  profession: string | null;
+  membershipNo: string | null;
+  professionalBody: string | null;
+  cycleLabel: string | null;
+  earnedPoints: number;
+  requiredPoints: number;
+  percentComplete: number;
+  pendingCount: number;
+}
+
+export interface AdminCycle extends CycleSummary {
+  certRef: string | null;
+  registrarName: string | null;
+  issuedAt: string | null;
+  entries: CpdEntry[];
+}
+
+export interface AdminMemberDetail {
+  member: {
+    id: string;
+    name: string;
+    email: string;
+    profession: string | null;
+    membershipNo: string | null;
+    professionalBody: string | null;
+    jobTitle: string | null;
+    organisation: string | null;
+  };
+  cycles: AdminCycle[];
+}
+
+export interface QueueItem {
+  id: string;
+  title: string;
+  type: EntryType;
+  activityDate: string;
+  pointsClaimed: number;
+  status: EntryStatus;
+  proofFileName: string | null;
+  note: string | null;
+  member: { id: string; name: string; membershipNo: string | null };
+}
+
 export interface ComplianceRecord {
   cycleId: string;
   label: string;

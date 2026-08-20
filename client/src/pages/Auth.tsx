@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { Logo } from "../components/ui";
 import { ApiError } from "../lib/api";
+import { homePathForUser } from "../lib/nav";
 
 const PROFESSIONS = ["HR", "Finance", "Engineering", "Marketing", "Cross-industry"];
 
@@ -17,7 +18,7 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (user) return <Navigate to={user.onboarded ? "/app" : "/onboard"} replace />;
+  if (user) return <Navigate to={homePathForUser(user)} replace />;
 
   const isSignup = mode === "signup";
 
@@ -28,10 +29,10 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
     try {
       if (isSignup) {
         const u = await signup({ name, email, password, profession });
-        navigate(u.onboarded ? "/app" : "/onboard");
+        navigate(homePathForUser(u));
       } else {
         const u = await signin(email, password);
-        navigate(u.onboarded ? "/app" : "/onboard");
+        navigate(homePathForUser(u));
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong");

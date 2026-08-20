@@ -26,7 +26,20 @@ The foundation and the complete **Member journey** are implemented:
 | Course detail | Full course info, provider profile, reviews, enrol |
 | CPD record | Verified certificate of CPD compliance, shareable |
 
-Additional role shells from the design — **Admin**, **Provider**, and
+The **Admin** shell (the professional body's registrar console) is also
+implemented:
+
+| Screen | What it does |
+| --- | --- |
+| Overview | Verification stats, certificates issued, register size |
+| Verification queue | Approve / reject submitted CPD across all members |
+| Members | Register with each member's current-cycle progress |
+| Member detail | A member's full history; verify/reject entries inline |
+
+Approving an entry counts it toward the member's cycle, and completing a
+cycle issues its certificate automatically.
+
+The remaining role shells from the design — **Provider** and
 **Organization** (tenders & bids) — are planned follow-ups.
 
 ## Live demo (GitHub Pages)
@@ -63,12 +76,12 @@ Then open http://localhost:5173.
 
 ### Demo account
 
-The seed creates a demo member so you can explore immediately:
+The seed creates demo accounts so you can explore immediately:
 
-- **Email:** `aisha@example.com`
-- **Password:** `password123`
+- **Member** — `aisha@example.com` / `password123`
+- **Registrar (admin)** — `registrar@example.com` / `password123`
 
-You can also register a fresh account from the sign-up screen.
+You can also register a fresh member account from the sign-up screen.
 
 ## Project layout
 

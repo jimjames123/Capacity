@@ -143,6 +143,20 @@ async function main() {
     })),
   });
 
+  // ---- Admin (professional body registrar) ---------------------------------
+  await prisma.user.create({
+    data: {
+      name: "R. Namutebi",
+      email: "registrar@example.com",
+      passwordHash: await bcrypt.hash("password123", 10),
+      role: "ADMIN",
+      profession: "HR",
+      professionalBody: "Human Resource Managers' Association of Uganda",
+      jobTitle: "Registrar",
+      onboarded: true,
+    },
+  });
+
   // ---- Providers -----------------------------------------------------------
   const [makerere, deloitte, uiap, brandhouse, think] = await Promise.all([
     prisma.provider.create({

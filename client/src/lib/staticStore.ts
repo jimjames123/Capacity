@@ -19,7 +19,8 @@ import type {
   User,
 } from "./types";
 
-const LS_KEY = "cs_static_db_v1";
+// Bump when the seed shape changes so returning visitors get fresh demo data.
+const LS_KEY = "cs_static_db_v2";
 
 interface StoredUser extends User {
   password: string;
@@ -104,6 +105,20 @@ function seed(): DB {
       organisation: "National Water & Sewerage Corporation",
       onboarded: true,
       createdAt: iso("2025-11-01"),
+    },
+    {
+      id: "u_admin",
+      email: "registrar@example.com",
+      password: "password123",
+      name: "R. Namutebi",
+      role: "ADMIN",
+      profession: "HR",
+      membershipNo: null,
+      professionalBody: "Human Resource Managers' Association of Uganda",
+      jobTitle: "Registrar",
+      organisation: null,
+      onboarded: true,
+      createdAt: iso("2025-10-01"),
     },
   ];
 
@@ -191,6 +206,26 @@ function requireUser(db: DB): StoredUser {
   const u = id ? db.users.find((x) => x.id === id) : null;
   if (!u) throw { status: 401, error: "Authentication required" };
   return u;
+}
+
+function requireAdmin(db: DB): StoredUser {
+  const u = requireUser(db);
+  if (u.role !== "ADMIN") throw { status: 403, error: "Admin access required" };
+  return u;
+}
+
+/** Issues a certificate for a completed cycle if one hasn't been issued. */
+function maybeIssueCert(db: DB, cycle: Cycle, member: StoredUser, registrar: string) {
+  if (cycle.certRef) return;
+  const entries = db.entries.filter((e) => e.cycleId === cycle.id);
+  const earned = entries.filter((e) => e.status === "VERIFIED").reduce((s, e) => s + e.pointsClaimed, 0);
+  if (earned < cycle.requiredPoints) return;
+  const year = new Date(cycle.startDate).getFullYear();
+  const suffix = (member.membershipNo ?? member.id.slice(-4)).replace(/[^A-Za-z0-9]/g, "").slice(-4).toUpperCase();
+  const prefix = (member.profession ?? "CPD").slice(0, 3).toUpperCase();
+  cycle.certRef = `CPD-${year}-${prefix}-${suffix}`;
+  cycle.registrarName = registrar;
+  cycle.issuedAt = new Date().toISOString();
 }
 
 function ensureCurrentCycle(db: DB, userId: string): Cycle {
@@ -328,6 +363,110 @@ export async function handle(method: string, path: string, body: unknown): Promi
       };
     });
     return { holder: { name: user.name, membershipNo: user.membershipNo, professionalBody: user.professionalBody }, records };
+  }
+
+  // --- Admin ---
+  if (method === "GET" && rawPath === "/admin/overview") {
+    requireAdmin(db);
+    const byStatus = { VERIFIED: 0, PENDING: 0, NEEDS_PROOF: 0, REJECTED: 0 };
+    for (const e of db.entries) byStatus[e.status] += 1;
+    return {
+      stats: {
+        members: db.users.filter((u) => u.role === "MEMBER").length,
+        providers: providers.length,
+        courses: courses.length,
+        certificatesIssued: db.cycles.filter((c) => (c as unknown as { certRef: string | null }).certRef).length,
+        awaitingReview: byStatus.PENDING,
+        needsProof: byStatus.NEEDS_PROOF,
+        verified: byStatus.VERIFIED,
+        rejected: byStatus.REJECTED,
+      },
+    };
+  }
+
+  if (method === "GET" && rawPath === "/admin/members") {
+    requireAdmin(db);
+    const members = db.users.filter((u) => u.role === "MEMBER");
+    return {
+      members: members.map((m) => {
+        const cycle = db.cycles.find((c) => c.userId === m.id && c.isCurrent);
+        const entries = cycle ? db.entries.filter((e) => e.cycleId === cycle.id) : [];
+        const summary = cycle ? buildSummary(cycle, entries) : null;
+        return {
+          id: m.id,
+          name: m.name,
+          email: m.email,
+          profession: m.profession,
+          membershipNo: m.membershipNo,
+          professionalBody: m.professionalBody,
+          cycleLabel: cycle?.label ?? null,
+          earnedPoints: summary?.earnedPoints ?? 0,
+          requiredPoints: summary?.requiredPoints ?? 0,
+          percentComplete: summary?.percentComplete ?? 0,
+          pendingCount: entries.filter((e) => e.status === "PENDING" || e.status === "NEEDS_PROOF").length,
+        };
+      }),
+    };
+  }
+
+  if (method === "GET" && rawPath.startsWith("/admin/members/")) {
+    requireAdmin(db);
+    const mid = rawPath.split("/")[3];
+    const member = db.users.find((u) => u.id === mid && u.role === "MEMBER");
+    if (!member) throw { status: 404, error: "Member not found" };
+    const cycles = db.cycles
+      .filter((c) => c.userId === mid)
+      .sort((a, b2) => +new Date(b2.startDate) - +new Date(a.startDate));
+    return {
+      member: {
+        id: member.id, name: member.name, email: member.email,
+        profession: member.profession, membershipNo: member.membershipNo,
+        professionalBody: member.professionalBody, jobTitle: member.jobTitle,
+        organisation: member.organisation,
+      },
+      cycles: cycles.map((c) => {
+        const entries = db.entries.filter((e) => e.cycleId === c.id).sort(byDateDesc);
+        const anyC = c as unknown as { certRef: string | null; registrarName: string | null; issuedAt: string | null };
+        return { ...buildSummary(c, entries), certRef: anyC.certRef, registrarName: anyC.registrarName, issuedAt: anyC.issuedAt, entries };
+      }),
+    };
+  }
+
+  if (method === "GET" && rawPath === "/admin/queue") {
+    requireAdmin(db);
+    const items = db.entries
+      .filter((e) => e.status === "PENDING" || e.status === "NEEDS_PROOF")
+      .sort((a, b2) => +new Date(a.createdAt) - +new Date(b2.createdAt));
+    return {
+      queue: items.map((e) => {
+        const m = db.users.find((u) => u.id === e.userId)!;
+        return {
+          id: e.id, title: e.title, type: e.type, activityDate: e.activityDate,
+          pointsClaimed: e.pointsClaimed, status: e.status, proofFileName: e.proofFileName, note: e.note,
+          member: { id: m.id, name: m.name, membershipNo: m.membershipNo },
+        };
+      }),
+    };
+  }
+
+  if (method === "POST" && /^\/admin\/entries\/[^/]+\/(verify|reject)$/.test(rawPath)) {
+    const admin = requireAdmin(db);
+    const parts = rawPath.split("/");
+    const eid = parts[3];
+    const action = parts[4];
+    const entry = db.entries.find((e) => e.id === eid);
+    if (!entry) throw { status: 404, error: "Entry not found" };
+    if (action === "verify" && entry.status === "NEEDS_PROOF" && !entry.proofFileName) {
+      throw { status: 400, error: "Cannot verify an entry without proof" };
+    }
+    entry.status = action === "verify" ? "VERIFIED" : "REJECTED";
+    if (action === "verify") {
+      const cycle = db.cycles.find((c) => c.id === entry.cycleId);
+      const member = db.users.find((u) => u.id === entry.userId);
+      if (cycle && member) maybeIssueCert(db, cycle, member, admin.name);
+    }
+    save(db);
+    return { entry };
   }
 
   throw { status: 404, error: "Not found" };

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { homePathForUser } from "../lib/nav";
 import { Badge, Logo, ProgressRing } from "../components/ui";
 import { FORMAT_META, pointsLabel } from "../lib/format";
 import type { Course } from "../lib/types";
@@ -70,7 +71,7 @@ export default function Landing() {
       .catch(() => setCourses([]));
   }, []);
 
-  const goApp = () => navigate(user ? "/app" : "/signup");
+  const goApp = () => navigate(user ? homePathForUser(user) : "/signup");
 
   return (
     <div className="bg-surface">
