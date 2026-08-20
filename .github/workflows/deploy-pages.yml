@@ -6,7 +6,6 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - claude/build-artifact-functionality-eh974y
       - main
     paths:
       - "client/**"
