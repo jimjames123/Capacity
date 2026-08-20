@@ -374,6 +374,49 @@ async function main() {
     data: { userId: aisha.id, courseId: courses[2].id },
   });
 
+  // ---- Organizations & staff ----------------------------------------------
+  const nwsc = await prisma.organization.create({
+    data: {
+      name: "National Water & Sewerage Corporation",
+      sector: "Public sector",
+      district: "Kampala",
+      contactName: "Sarah Nakimuli",
+      contactEmail: "hr@nwsc.example.ug",
+      contactPhone: "+256 414 315 000",
+    },
+  });
+  const stanbic = await prisma.organization.create({
+    data: {
+      name: "Stanbic Bank Uganda",
+      sector: "Financial services",
+      district: "Kampala",
+      contactName: "David Ochieng",
+      contactEmail: "people@stanbic.example.ug",
+      contactPhone: "+256 312 224 600",
+    },
+  });
+  const ura = await prisma.organization.create({
+    data: {
+      name: "Uganda Revenue Authority",
+      sector: "Public sector",
+      district: "Kampala",
+      contactName: "Grace Atim",
+      contactEmail: "training@ura.example.ug",
+      contactPhone: "+256 417 442 097",
+    },
+  });
+
+  await prisma.staff.createMany({
+    data: [
+      { organizationId: nwsc.id, name: "Aisha Nakato", email: "aisha@example.com", jobTitle: "Senior HR Business Partner", profession: "HR", membershipNo: "HRM-2024-0417" },
+      { organizationId: nwsc.id, name: "Peter Okot", email: "peter.okot@nwsc.example.ug", jobTitle: "Finance Officer", profession: "Finance", membershipNo: "ICP-2023-1180" },
+      { organizationId: nwsc.id, name: "Joan Akello", email: "joan.akello@nwsc.example.ug", jobTitle: "Civil Engineer", profession: "Engineering", membershipNo: "UIPE-2022-0455" },
+      { organizationId: stanbic.id, name: "Brian Mugume", email: "brian.mugume@stanbic.example.ug", jobTitle: "Risk Analyst", profession: "Finance", membershipNo: "ICP-2024-2210" },
+      { organizationId: stanbic.id, name: "Linda Nabukenya", email: "linda.n@stanbic.example.ug", jobTitle: "HR Manager", profession: "HR", membershipNo: "HRM-2021-0902" },
+      { organizationId: ura.id, name: "Samuel Wanyama", email: "samuel.w@ura.example.ug", jobTitle: "Tax Officer", profession: "Finance", membershipNo: "ICP-2020-0771" },
+    ],
+  });
+
   console.log("Seed complete: demo member aisha@example.com / password123");
 }
 

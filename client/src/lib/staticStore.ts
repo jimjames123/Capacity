@@ -14,8 +14,10 @@ import type {
   CpdEntry,
   Cycle,
   EntryStatus,
+  Organization,
   Provider,
   Review,
+  Staff,
   User,
 } from "./types";
 
@@ -31,6 +33,8 @@ interface DB {
   cycles: Cycle[];
   entries: (CpdEntry & { userId: string; cycleId: string })[];
   enrollments: { id: string; userId: string; courseId: string; status: string; createdAt: string }[];
+  organizations: Omit<Organization, "staffCount" | "staff">[];
+  staff: Staff[];
 }
 
 // ---- Static catalogue (providers, courses, reviews) ------------------------
@@ -148,7 +152,32 @@ function seed(): DB {
     ] as const).map(([t, ty, d, p], i) => e(`p${i}`, "cy2025", t, ty, d, p, "VERIFIED", "certificate.pdf")),
   ];
 
-  return { users, cycles, entries, enrollments: [{ id: "en1", userId: aishaId, courseId: "c3", status: "ENROLLED", createdAt: iso("2026-02-01") }] };
+  const organizations: DB["organizations"] = [
+    { id: "org_nwsc", name: "National Water & Sewerage Corporation", sector: "Public sector", district: "Kampala", contactName: "Sarah Nakimuli", contactEmail: "hr@nwsc.example.ug", contactPhone: "+256 414 315 000" },
+    { id: "org_stanbic", name: "Stanbic Bank Uganda", sector: "Financial services", district: "Kampala", contactName: "David Ochieng", contactEmail: "people@stanbic.example.ug", contactPhone: "+256 312 224 600" },
+    { id: "org_ura", name: "Uganda Revenue Authority", sector: "Public sector", district: "Kampala", contactName: "Grace Atim", contactEmail: "training@ura.example.ug", contactPhone: "+256 417 442 097" },
+  ];
+
+  const mkStaff = (id: string, organizationId: string, name: string, email: string, jobTitle: string, profession: string, membershipNo: string): Staff =>
+    ({ id, organizationId, name, email, jobTitle, profession, membershipNo, createdAt: iso("2025-11-01") });
+
+  const staff: Staff[] = [
+    mkStaff("st1", "org_nwsc", "Aisha Nakato", "aisha@example.com", "Senior HR Business Partner", "HR", "HRM-2024-0417"),
+    mkStaff("st2", "org_nwsc", "Peter Okot", "peter.okot@nwsc.example.ug", "Finance Officer", "Finance", "ICP-2023-1180"),
+    mkStaff("st3", "org_nwsc", "Joan Akello", "joan.akello@nwsc.example.ug", "Civil Engineer", "Engineering", "UIPE-2022-0455"),
+    mkStaff("st4", "org_stanbic", "Brian Mugume", "brian.mugume@stanbic.example.ug", "Risk Analyst", "Finance", "ICP-2024-2210"),
+    mkStaff("st5", "org_stanbic", "Linda Nabukenya", "linda.n@stanbic.example.ug", "HR Manager", "HR", "HRM-2021-0902"),
+    mkStaff("st6", "org_ura", "Samuel Wanyama", "samuel.w@ura.example.ug", "Tax Officer", "Finance", "ICP-2020-0771"),
+  ];
+
+  return {
+    users,
+    cycles,
+    entries,
+    enrollments: [{ id: "en1", userId: aishaId, courseId: "c3", status: "ENROLLED", createdAt: iso("2026-02-01") }],
+    organizations,
+    staff,
+  };
 }
 
 // ---- Persistence -----------------------------------------------------------
@@ -467,6 +496,217 @@ export async function handle(method: string, path: string, body: unknown): Promi
     }
     save(db);
     return { entry };
+  }
+
+  // --- Admin: verification ---
+  if (method === "GET" && rawPath === "/admin/overview") {
+    requireAdmin(db);
+    const counts = { VERIFIED: 0, PENDING: 0, NEEDS_PROOF: 0, REJECTED: 0 };
+    for (const e of db.entries) counts[e.status] += 1;
+    return {
+      stats: {
+        members: db.users.filter((u) => u.role === "MEMBER").length,
+        providers: providers.length,
+        courses: courses.length,
+        certificatesIssued: db.cycles.filter((c) => c.certRef).length,
+        awaitingReview: counts.PENDING,
+        needsProof: counts.NEEDS_PROOF,
+        verified: counts.VERIFIED,
+        rejected: counts.REJECTED,
+      },
+    };
+  }
+
+  if (method === "GET" && rawPath === "/admin/members") {
+    requireAdmin(db);
+    const rows = db.users
+      .filter((u) => u.role === "MEMBER")
+      .sort((a, b2) => a.name.localeCompare(b2.name))
+      .map((m) => {
+        const cycle = db.cycles.find((c) => c.userId === m.id && c.isCurrent);
+        const entries = cycle ? db.entries.filter((e) => e.cycleId === cycle.id) : [];
+        const s = cycle ? buildSummary(cycle, entries) : null;
+        return {
+          id: m.id, name: m.name, email: m.email, profession: m.profession,
+          membershipNo: m.membershipNo, professionalBody: m.professionalBody,
+          cycleLabel: cycle?.label ?? null,
+          earnedPoints: s?.earnedPoints ?? 0, requiredPoints: s?.requiredPoints ?? 0,
+          percentComplete: s?.percentComplete ?? 0,
+          pendingCount: entries.filter((e) => e.status === "PENDING" || e.status === "NEEDS_PROOF").length,
+        };
+      });
+    return { members: rows };
+  }
+
+  if (method === "GET" && /^\/admin\/members\/[^/]+$/.test(rawPath)) {
+    requireAdmin(db);
+    const id = rawPath.split("/")[3];
+    const m = db.users.find((u) => u.id === id && u.role === "MEMBER");
+    if (!m) throw { status: 404, error: "Member not found" };
+    const cycles = db.cycles
+      .filter((c) => c.userId === id)
+      .sort((a, b2) => +new Date(b2.startDate) - +new Date(a.startDate))
+      .map((c) => {
+        const entries = db.entries.filter((e) => e.cycleId === c.id).sort(byDateDesc);
+        return { ...buildSummary(c, entries), certRef: c.certRef, registrarName: c.registrarName, issuedAt: c.issuedAt, entries };
+      });
+    return {
+      member: { id: m.id, name: m.name, email: m.email, profession: m.profession, membershipNo: m.membershipNo, professionalBody: m.professionalBody, jobTitle: m.jobTitle, organisation: m.organisation },
+      cycles,
+    };
+  }
+
+  if (method === "GET" && rawPath === "/admin/queue") {
+    requireAdmin(db);
+    const items = db.entries
+      .filter((e) => e.status === "PENDING" || e.status === "NEEDS_PROOF")
+      .sort((a, b2) => +new Date(a.createdAt) - +new Date(b2.createdAt))
+      .map((e) => {
+        const member = db.users.find((u) => u.id === e.userId)!;
+        return { id: e.id, title: e.title, type: e.type, activityDate: e.activityDate, pointsClaimed: e.pointsClaimed, status: e.status, proofFileName: e.proofFileName, note: e.note, member: { id: member.id, name: member.name, membershipNo: member.membershipNo } };
+      });
+    return { queue: items };
+  }
+
+  if (method === "POST" && /^\/admin\/entries\/[^/]+\/(verify|reject)$/.test(rawPath)) {
+    const admin = requireAdmin(db);
+    const parts = rawPath.split("/");
+    const entryId = parts[3];
+    const action = parts[4];
+    const entry = db.entries.find((e) => e.id === entryId);
+    if (!entry) throw { status: 404, error: "Entry not found" };
+    if (action === "verify" && entry.status === "NEEDS_PROOF" && !entry.proofFileName) {
+      throw { status: 400, error: "Cannot verify an entry without proof" };
+    }
+    entry.status = action === "verify" ? "VERIFIED" : "REJECTED";
+    if (action === "verify") {
+      const cycle = db.cycles.find((c) => c.id === entry.cycleId);
+      const member = db.users.find((u) => u.id === entry.userId);
+      if (cycle && member) maybeIssueCert(db, cycle, member, admin.name);
+    }
+    save(db);
+    return { entry };
+  }
+
+  // --- Admin: members CRUD ---
+  if (method === "POST" && rawPath === "/admin/members") {
+    requireAdmin(db);
+    if (db.users.some((u) => u.email === b.email)) throw { status: 409, error: "A user with that email already exists" };
+    const user: StoredUser = { id: uid("u_"), email: b.email, password: b.password || "password123", name: b.name, role: "MEMBER", profession: b.profession ?? null, membershipNo: b.membershipNo ?? null, professionalBody: b.professionalBody ?? null, jobTitle: b.jobTitle ?? null, organisation: b.organisation ?? null, onboarded: true, createdAt: new Date().toISOString() };
+    db.users.push(user);
+    const year = new Date().getFullYear();
+    db.cycles.push({ id: uid("cy"), userId: user.id, label: `Jan ${year} – Dec ${year}`, startDate: iso(`${year}-01-01`), endDate: iso(`${year}-12-31`), requiredPoints: 12, isCurrent: true, certRef: null, registrarName: null, issuedAt: null } as unknown as Cycle);
+    save(db);
+    return { id: user.id };
+  }
+
+  if (method === "PATCH" && /^\/admin\/members\/[^/]+$/.test(rawPath)) {
+    requireAdmin(db);
+    const id = rawPath.split("/")[3];
+    const m = db.users.find((u) => u.id === id && u.role === "MEMBER");
+    if (!m) throw { status: 404, error: "Member not found" };
+    for (const k of ["name", "email", "profession", "membershipNo", "professionalBody", "jobTitle", "organisation"] as const) {
+      if (b[k] !== undefined) (m as any)[k] = b[k];
+    }
+    if (b.password) m.password = b.password;
+    save(db);
+    return { ok: true };
+  }
+
+  if (method === "DELETE" && /^\/admin\/members\/[^/]+$/.test(rawPath)) {
+    requireAdmin(db);
+    const id = rawPath.split("/")[3];
+    const m = db.users.find((u) => u.id === id && u.role === "MEMBER");
+    if (!m) throw { status: 404, error: "Member not found" };
+    const cycleIds = db.cycles.filter((c) => c.userId === id).map((c) => c.id);
+    db.entries = db.entries.filter((e) => e.userId !== id);
+    db.cycles = db.cycles.filter((c) => c.userId !== id);
+    db.enrollments = db.enrollments.filter((e) => e.userId !== id);
+    void cycleIds;
+    db.users = db.users.filter((u) => u.id !== id);
+    save(db);
+    return { ok: true };
+  }
+
+  // --- Admin: organizations CRUD ---
+  if (method === "GET" && rawPath === "/admin/organizations") {
+    requireAdmin(db);
+    const orgs = db.organizations
+      .slice()
+      .sort((a, b2) => a.name.localeCompare(b2.name))
+      .map((o) => ({ ...o, staffCount: db.staff.filter((s) => s.organizationId === o.id).length }));
+    return { organizations: orgs };
+  }
+
+  if (method === "GET" && /^\/admin\/organizations\/[^/]+$/.test(rawPath)) {
+    requireAdmin(db);
+    const id = rawPath.split("/")[3];
+    const org = db.organizations.find((o) => o.id === id);
+    if (!org) throw { status: 404, error: "Organization not found" };
+    const staff = db.staff.filter((s) => s.organizationId === id).sort((a, b2) => a.name.localeCompare(b2.name));
+    return { organization: { ...org, staff } };
+  }
+
+  if (method === "POST" && rawPath === "/admin/organizations") {
+    requireAdmin(db);
+    const org = { id: uid("org_"), name: b.name, sector: b.sector ?? null, district: b.district ?? null, contactName: b.contactName ?? null, contactEmail: b.contactEmail ?? null, contactPhone: b.contactPhone ?? null };
+    db.organizations.push(org);
+    save(db);
+    return { id: org.id };
+  }
+
+  if (method === "PATCH" && /^\/admin\/organizations\/[^/]+$/.test(rawPath)) {
+    requireAdmin(db);
+    const id = rawPath.split("/")[3];
+    const org = db.organizations.find((o) => o.id === id);
+    if (!org) throw { status: 404, error: "Organization not found" };
+    for (const k of ["name", "sector", "district", "contactName", "contactEmail", "contactPhone"] as const) {
+      if (b[k] !== undefined) (org as any)[k] = b[k];
+    }
+    save(db);
+    return { ok: true };
+  }
+
+  if (method === "DELETE" && /^\/admin\/organizations\/[^/]+$/.test(rawPath)) {
+    requireAdmin(db);
+    const id = rawPath.split("/")[3];
+    if (!db.organizations.some((o) => o.id === id)) throw { status: 404, error: "Organization not found" };
+    db.staff = db.staff.filter((s) => s.organizationId !== id);
+    db.organizations = db.organizations.filter((o) => o.id !== id);
+    save(db);
+    return { ok: true };
+  }
+
+  // --- Admin: staff CRUD ---
+  if (method === "POST" && /^\/admin\/organizations\/[^/]+\/staff$/.test(rawPath)) {
+    requireAdmin(db);
+    const orgId = rawPath.split("/")[3];
+    if (!db.organizations.some((o) => o.id === orgId)) throw { status: 404, error: "Organization not found" };
+    const s: Staff = { id: uid("st_"), organizationId: orgId, name: b.name, email: b.email ?? null, jobTitle: b.jobTitle ?? null, profession: b.profession ?? null, membershipNo: b.membershipNo ?? null, createdAt: new Date().toISOString() };
+    db.staff.push(s);
+    save(db);
+    return { id: s.id };
+  }
+
+  if (method === "PATCH" && /^\/admin\/staff\/[^/]+$/.test(rawPath)) {
+    requireAdmin(db);
+    const id = rawPath.split("/")[3];
+    const s = db.staff.find((x) => x.id === id);
+    if (!s) throw { status: 404, error: "Staff member not found" };
+    for (const k of ["name", "email", "jobTitle", "profession", "membershipNo"] as const) {
+      if (b[k] !== undefined) (s as any)[k] = b[k];
+    }
+    save(db);
+    return { ok: true };
+  }
+
+  if (method === "DELETE" && /^\/admin\/staff\/[^/]+$/.test(rawPath)) {
+    requireAdmin(db);
+    const id = rawPath.split("/")[3];
+    if (!db.staff.some((x) => x.id === id)) throw { status: 404, error: "Staff member not found" };
+    db.staff = db.staff.filter((x) => x.id !== id);
+    save(db);
+    return { ok: true };
   }
 
   throw { status: 404, error: "Not found" };

@@ -114,6 +114,29 @@ export interface Enrollment {
   course: Course;
 }
 
+export interface Staff {
+  id: string;
+  organizationId: string;
+  name: string;
+  email: string | null;
+  jobTitle: string | null;
+  profession: string | null;
+  membershipNo: string | null;
+  createdAt: string;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  sector: string | null;
+  district: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  staffCount?: number;
+  staff?: Staff[];
+}
+
 export interface AdminStats {
   members: number;
   providers: number;

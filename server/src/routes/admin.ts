@@ -1,7 +1,8 @@
 import { Router } from "express";
 import type { Response, NextFunction } from "express";
+import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
-import { requireAuth, type AuthedRequest } from "../lib/auth.js";
+import { requireAuth, hashPassword, type AuthedRequest } from "../lib/auth.js";
 import { buildCycleSummary } from "../lib/summary.js";
 import { maybeIssueCertificate } from "../lib/cert.js";
 
@@ -188,3 +189,227 @@ adminRouter.post("/entries/:id/verify", (req: AuthedRequest, res) =>
 adminRouter.post("/entries/:id/reject", (req: AuthedRequest, res) =>
   decideEntry(req, res, "REJECTED"),
 );
+
+// ---------------------------------------------------------------------------
+// Members CRUD
+// ---------------------------------------------------------------------------
+
+const memberCreateSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+  password: z.string().min(6).optional(),
+  profession: z.string().optional(),
+  membershipNo: z.string().optional(),
+  professionalBody: z.string().optional(),
+  jobTitle: z.string().optional(),
+  organisation: z.string().optional(),
+});
+
+/** POST /api/admin/members — register a new member (with a starting cycle). */
+adminRouter.post("/members", async (req, res) => {
+  const parsed = memberCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid member details", issues: parsed.error.issues });
+    return;
+  }
+  const d = parsed.data;
+  if (await prisma.user.findUnique({ where: { email: d.email } })) {
+    res.status(409).json({ error: "A user with that email already exists" });
+    return;
+  }
+  const user = await prisma.user.create({
+    data: {
+      name: d.name,
+      email: d.email,
+      passwordHash: await hashPassword(d.password ?? "password123"),
+      role: "MEMBER",
+      profession: d.profession ?? null,
+      membershipNo: d.membershipNo ?? null,
+      professionalBody: d.professionalBody ?? null,
+      jobTitle: d.jobTitle ?? null,
+      organisation: d.organisation ?? null,
+      onboarded: true,
+    },
+  });
+  const year = new Date().getFullYear();
+  await prisma.cycle.create({
+    data: {
+      userId: user.id,
+      label: `Jan ${year} – Dec ${year}`,
+      startDate: new Date(`${year}-01-01T00:00:00Z`),
+      endDate: new Date(`${year}-12-31T23:59:59Z`),
+      requiredPoints: 12,
+      isCurrent: true,
+    },
+  });
+  res.status(201).json({ id: user.id });
+});
+
+/** PATCH /api/admin/members/:id — update a member's profile. */
+adminRouter.patch("/members/:id", async (req, res) => {
+  const parsed = memberCreateSchema.partial().safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid member details" });
+    return;
+  }
+  const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!existing || existing.role !== "MEMBER") {
+    res.status(404).json({ error: "Member not found" });
+    return;
+  }
+  const { password, ...fields } = parsed.data;
+  await prisma.user.update({
+    where: { id: req.params.id },
+    data: {
+      ...fields,
+      ...(password ? { passwordHash: await hashPassword(password) } : {}),
+    },
+  });
+  res.json({ ok: true });
+});
+
+/** DELETE /api/admin/members/:id — remove a member and their CPD data. */
+adminRouter.delete("/members/:id", async (req, res) => {
+  const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!existing || existing.role !== "MEMBER") {
+    res.status(404).json({ error: "Member not found" });
+    return;
+  }
+  await prisma.user.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Organizations CRUD
+// ---------------------------------------------------------------------------
+
+const orgSchema = z.object({
+  name: z.string().min(2),
+  sector: z.string().optional(),
+  district: z.string().optional(),
+  contactName: z.string().optional(),
+  contactEmail: z.string().optional(),
+  contactPhone: z.string().optional(),
+});
+
+/** GET /api/admin/organizations — all organizations with staff counts. */
+adminRouter.get("/organizations", async (_req, res) => {
+  const orgs = await prisma.organization.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { staff: true } } },
+  });
+  res.json({
+    organizations: orgs.map((o) => ({
+      id: o.id,
+      name: o.name,
+      sector: o.sector,
+      district: o.district,
+      contactName: o.contactName,
+      contactEmail: o.contactEmail,
+      contactPhone: o.contactPhone,
+      staffCount: o._count.staff,
+    })),
+  });
+});
+
+/** GET /api/admin/organizations/:id — organization with its staff. */
+adminRouter.get("/organizations/:id", async (req, res) => {
+  const org = await prisma.organization.findUnique({
+    where: { id: req.params.id },
+    include: { staff: { orderBy: { name: "asc" } } },
+  });
+  if (!org) {
+    res.status(404).json({ error: "Organization not found" });
+    return;
+  }
+  res.json({ organization: org });
+});
+
+adminRouter.post("/organizations", async (req, res) => {
+  const parsed = orgSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid organization details" });
+    return;
+  }
+  const org = await prisma.organization.create({ data: parsed.data });
+  res.status(201).json({ id: org.id });
+});
+
+adminRouter.patch("/organizations/:id", async (req, res) => {
+  const parsed = orgSchema.partial().safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid organization details" });
+    return;
+  }
+  const existing = await prisma.organization.findUnique({ where: { id: req.params.id } });
+  if (!existing) {
+    res.status(404).json({ error: "Organization not found" });
+    return;
+  }
+  await prisma.organization.update({ where: { id: req.params.id }, data: parsed.data });
+  res.json({ ok: true });
+});
+
+adminRouter.delete("/organizations/:id", async (req, res) => {
+  const existing = await prisma.organization.findUnique({ where: { id: req.params.id } });
+  if (!existing) {
+    res.status(404).json({ error: "Organization not found" });
+    return;
+  }
+  await prisma.organization.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Staff CRUD
+// ---------------------------------------------------------------------------
+
+const staffSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().optional(),
+  jobTitle: z.string().optional(),
+  profession: z.string().optional(),
+  membershipNo: z.string().optional(),
+});
+
+adminRouter.post("/organizations/:id/staff", async (req, res) => {
+  const parsed = staffSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid staff details" });
+    return;
+  }
+  const org = await prisma.organization.findUnique({ where: { id: req.params.id } });
+  if (!org) {
+    res.status(404).json({ error: "Organization not found" });
+    return;
+  }
+  const staff = await prisma.staff.create({
+    data: { ...parsed.data, organizationId: org.id },
+  });
+  res.status(201).json({ id: staff.id });
+});
+
+adminRouter.patch("/staff/:id", async (req, res) => {
+  const parsed = staffSchema.partial().safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid staff details" });
+    return;
+  }
+  const existing = await prisma.staff.findUnique({ where: { id: req.params.id } });
+  if (!existing) {
+    res.status(404).json({ error: "Staff member not found" });
+    return;
+  }
+  await prisma.staff.update({ where: { id: req.params.id }, data: parsed.data });
+  res.json({ ok: true });
+});
+
+adminRouter.delete("/staff/:id", async (req, res) => {
+  const existing = await prisma.staff.findUnique({ where: { id: req.params.id } });
+  if (!existing) {
+    res.status(404).json({ error: "Staff member not found" });
+    return;
+  }
+  await prisma.staff.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
+});

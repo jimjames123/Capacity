@@ -6,6 +6,7 @@ const NAV = [
   { to: "/admin", label: "Overview", end: true },
   { to: "/admin/queue", label: "Verification queue", end: false },
   { to: "/admin/members", label: "Members", end: false },
+  { to: "/admin/organizations", label: "Organizations", end: false },
 ];
 
 export function AdminLayout() {
