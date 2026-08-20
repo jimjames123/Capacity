@@ -16,10 +16,25 @@ export class ApiError extends Error {
   }
 }
 
+// When built for GitHub Pages there is no backend, so requests are served by
+// an in-browser localStorage store that mirrors the API.
+const STATIC_MODE = import.meta.env.VITE_STATIC === "true";
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  if (STATIC_MODE) {
+    const { handle } = await import("./staticStore");
+    const body = options.body ? JSON.parse(options.body as string) : undefined;
+    try {
+      return (await handle(options.method ?? "GET", path, body)) as T;
+    } catch (err) {
+      const e = err as { status?: number; error?: string };
+      throw new ApiError(e.error ?? "Something went wrong", e.status ?? 500);
+    }
+  }
+
   const token = getToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",

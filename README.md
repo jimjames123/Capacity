@@ -29,6 +29,21 @@ The foundation and the complete **Member journey** are implemented:
 Additional role shells from the design — **Admin**, **Provider**, and
 **Organization** (tenders & bids) — are planned follow-ups.
 
+## Live demo (GitHub Pages)
+
+A static build is deployed to GitHub Pages:
+
+**https://jimjames123.github.io/Capacity/**
+
+GitHub Pages serves static files only, so the deployed site runs against an
+**in-browser data layer** (`client/src/lib/staticStore.ts`, backed by
+localStorage and seeded with the same demo data) instead of the Node/SQLite
+backend. Every flow still works — sign in, log CPD, browse and enrol, view the
+certificate — and data persists per browser. The Express + Prisma backend in
+`server/` remains the source of truth for local development and real hosting.
+
+Sign in with the demo account below, or register a new one.
+
 ## Getting started
 
 ```bash

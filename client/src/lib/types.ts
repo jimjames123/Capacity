@@ -37,6 +37,19 @@ export interface CpdEntry {
   createdAt: string;
 }
 
+export interface Cycle {
+  id: string;
+  userId: string;
+  label: string;
+  startDate: string;
+  endDate: string;
+  requiredPoints: number;
+  isCurrent: boolean;
+  certRef: string | null;
+  registrarName: string | null;
+  issuedAt: string | null;
+}
+
 export interface CycleSummary {
   cycleId: string;
   label: string;
