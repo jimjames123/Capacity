@@ -415,6 +415,66 @@ adminRouter.delete("/staff/:id", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Course approval queue (pending provider listings)
+// ---------------------------------------------------------------------------
+
+/** GET /api/admin/course-queue — course listings awaiting approval. */
+adminRouter.get("/course-queue", async (_req, res) => {
+  const courses = await prisma.course.findMany({
+    where: { status: "PENDING" },
+    orderBy: { createdAt: "asc" },
+    include: { provider: true },
+  });
+  res.json({
+    queue: courses.map((c) => ({
+      id: c.id, title: c.title, description: c.description, profession: c.profession,
+      format: c.format, points: c.points, fee: c.fee, schedule: c.schedule, seats: c.seats,
+      provider: { id: c.provider.id, name: c.provider.name, initials: c.provider.initials, verified: c.provider.verified },
+    })),
+  });
+});
+
+/** POST /api/admin/courses/:id/approve — sign off a listing (assign points). */
+adminRouter.post("/courses/:id/approve", async (req, res) => {
+  const course = await prisma.course.findUnique({ where: { id: req.params.id } });
+  if (!course) {
+    res.status(404).json({ error: "Course not found" });
+    return;
+  }
+  const points = typeof req.body?.points === "number" ? req.body.points : course.points;
+  await prisma.course.update({
+    where: { id: course.id },
+    data: { status: "APPROVED", verified: true, points },
+  });
+  res.json({ ok: true });
+});
+
+adminRouter.post("/courses/:id/reject", async (req, res) => {
+  const course = await prisma.course.findUnique({ where: { id: req.params.id } });
+  if (!course) {
+    res.status(404).json({ error: "Course not found" });
+    return;
+  }
+  await prisma.course.update({ where: { id: course.id }, data: { status: "REJECTED" } });
+  res.json({ ok: true });
+});
+
+/** GET /api/admin/trainer-queue — providers awaiting verification. */
+adminRouter.get("/trainer-queue", async (_req, res) => {
+  const providers = await prisma.provider.findMany({
+    where: { verified: false },
+    orderBy: { createdAt: "asc" },
+    include: { _count: { select: { courses: true } } },
+  });
+  res.json({
+    queue: providers.map((p) => ({
+      id: p.id, name: p.name, initials: p.initials, type: p.type,
+      meta: p.meta, bio: p.bio, courseCount: p._count.courses,
+    })),
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Consultants (course providers / trainers)
 // ---------------------------------------------------------------------------
 

@@ -274,3 +274,139 @@ organizationRouter.get("/reports", async (req: OrgRequest, res) => {
     ),
   });
 });
+
+// ---- Organization profile --------------------------------------------------
+
+const profileSchema = z.object({
+  name: z.string().min(2).optional(),
+  sector: z.string().optional(),
+  district: z.string().optional(),
+  contactName: z.string().optional(),
+  contactEmail: z.string().optional(),
+  contactPhone: z.string().optional(),
+});
+
+organizationRouter.get("/profile", async (req: OrgRequest, res) => {
+  const org = await prisma.organization.findUnique({ where: { id: req.organizationId! } });
+  res.json({ organization: org });
+});
+
+organizationRouter.patch("/profile", async (req: OrgRequest, res) => {
+  const parsed = profileSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid details" });
+    return;
+  }
+  await prisma.organization.update({ where: { id: req.organizationId! }, data: parsed.data });
+  res.json({ ok: true });
+});
+
+// ---- Consultant directory (verified providers) -----------------------------
+
+organizationRouter.get("/consultants", async (_req, res) => {
+  const providers = await prisma.provider.findMany({
+    orderBy: [{ verified: "desc" }, { rating: "desc" }],
+    include: { _count: { select: { courses: true } } },
+  });
+  res.json({
+    consultants: providers.map((p) => ({
+      id: p.id, name: p.name, initials: p.initials, type: p.type,
+      verified: p.verified, rating: p.rating, meta: p.meta, bio: p.bio,
+      courseCount: p._count.courses,
+    })),
+  });
+});
+
+organizationRouter.get("/consultants/:id", async (req, res) => {
+  const p = await prisma.provider.findUnique({
+    where: { id: req.params.id },
+    include: { courses: { where: { status: "APPROVED" } } },
+  });
+  if (!p) {
+    res.status(404).json({ error: "Consultant not found" });
+    return;
+  }
+  res.json({
+    consultant: {
+      id: p.id, name: p.name, initials: p.initials, type: p.type,
+      verified: p.verified, rating: p.rating, meta: p.meta, bio: p.bio,
+      courses: p.courses.map((c) => ({ id: c.id, title: c.title, profession: c.profession, format: c.format, points: c.points, fee: c.fee, schedule: c.schedule })),
+    },
+  });
+});
+
+// ---- Bookings & training records -------------------------------------------
+
+const bookingSchema = z.object({
+  title: z.string().min(2),
+  providerName: z.string().optional(),
+  category: z.string().optional(),
+  staffCount: z.number().int().min(1).max(10000),
+  date: z.string(),
+  cost: z.string().min(1),
+});
+
+organizationRouter.get("/bookings", async (req: OrgRequest, res) => {
+  const bookings = await prisma.booking.findMany({
+    where: { organizationId: req.organizationId! },
+    orderBy: { date: "asc" },
+  });
+  res.json({ bookings });
+});
+
+organizationRouter.post("/bookings", async (req: OrgRequest, res) => {
+  const parsed = bookingSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid booking", issues: parsed.error.issues });
+    return;
+  }
+  const b = await prisma.booking.create({
+    data: {
+      ...parsed.data,
+      date: new Date(parsed.data.date),
+      organizationId: req.organizationId!,
+      status: "SCHEDULED",
+    },
+  });
+  res.status(201).json({ id: b.id });
+});
+
+async function ownedBooking(req: OrgRequest) {
+  const b = await prisma.booking.findUnique({ where: { id: req.params.id } });
+  return b && b.organizationId === req.organizationId ? b : null;
+}
+
+const bookingUpdate = bookingSchema.partial().extend({
+  status: z.enum(["SCHEDULED", "COMPLETED", "CANCELLED"]).optional(),
+  paid: z.boolean().optional(),
+  attendance: z.number().int().min(0).optional(),
+  certificateIssued: z.boolean().optional(),
+  outcome: z.string().optional(),
+});
+
+organizationRouter.patch("/bookings/:id", async (req: OrgRequest, res) => {
+  if (!(await ownedBooking(req))) {
+    res.status(404).json({ error: "Booking not found" });
+    return;
+  }
+  const parsed = bookingUpdate.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid booking" });
+    return;
+  }
+  const { date, ...rest } = parsed.data;
+  await prisma.booking.update({
+    where: { id: req.params.id },
+    data: { ...rest, ...(date ? { date: new Date(date) } : {}) },
+  });
+  res.json({ ok: true });
+});
+
+organizationRouter.delete("/bookings/:id", async (req: OrgRequest, res) => {
+  if (!(await ownedBooking(req))) {
+    res.status(404).json({ error: "Booking not found" });
+    return;
+  }
+  await prisma.booking.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
+});

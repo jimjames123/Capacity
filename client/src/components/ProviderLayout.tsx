@@ -6,6 +6,7 @@ const NAV = [
   { to: "/provider/courses", label: "My courses", end: false },
   { to: "/provider/tenders", label: "Tender board", end: false },
   { to: "/provider/bids", label: "My bids", end: false },
+  { to: "/provider/notifications", label: "Notifications", end: false },
 ];
 
 export function ProviderLayout() {

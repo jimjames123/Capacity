@@ -4,8 +4,13 @@ import { useAuth } from "../lib/auth";
 const NAV = [
   { to: "/org", label: "Home", end: true },
   { to: "/org/staff", label: "Staff", end: false },
+  { to: "/org/consultants", label: "Consultants", end: false },
   { to: "/org/browse", label: "Browse training", end: false },
+  { to: "/org/inhouse", label: "In-house request", end: false },
   { to: "/org/tenders", label: "My tenders", end: false },
+  { to: "/org/bookings", label: "Bookings", end: false },
+  { to: "/org/calendar", label: "Calendar", end: false },
+  { to: "/org/records", label: "Activity records", end: false },
   { to: "/org/reports", label: "Reports", end: false },
 ];
 

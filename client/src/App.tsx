@@ -19,19 +19,29 @@ import AdminOrganizations from "./pages/admin/AdminOrganizations";
 import AdminOrganizationDetail from "./pages/admin/AdminOrganizationDetail";
 import AdminConsultants from "./pages/admin/AdminConsultants";
 import AdminConsultantDetail from "./pages/admin/AdminConsultantDetail";
+import AdminCourseQueue from "./pages/admin/AdminCourseQueue";
+import AdminTrainerQueue from "./pages/admin/AdminTrainerQueue";
 import { ProviderLayout } from "./components/ProviderLayout";
 import ProviderHome from "./pages/provider/ProviderHome";
 import ProviderCourses from "./pages/provider/ProviderCourses";
 import ProviderTenders from "./pages/provider/ProviderTenders";
 import ProviderTenderDetail from "./pages/provider/ProviderTenderDetail";
 import ProviderBids from "./pages/provider/ProviderBids";
+import ProviderNotifications from "./pages/provider/ProviderNotifications";
 import { OrgLayout } from "./components/OrgLayout";
 import OrgHome from "./pages/org/OrgHome";
 import OrgStaff from "./pages/org/OrgStaff";
+import OrgConsultants from "./pages/org/OrgConsultants";
+import OrgConsultantDetail from "./pages/org/OrgConsultantDetail";
 import OrgBrowse from "./pages/org/OrgBrowse";
+import OrgInhouse from "./pages/org/OrgInhouse";
 import OrgTenders from "./pages/org/OrgTenders";
 import OrgTenderDetail from "./pages/org/OrgTenderDetail";
+import OrgBookings from "./pages/org/OrgBookings";
+import OrgCalendar from "./pages/org/OrgCalendar";
+import OrgRecords from "./pages/org/OrgRecords";
 import OrgReports from "./pages/org/OrgReports";
+import OrgProfile from "./pages/org/OrgProfile";
 import type { ReactNode } from "react";
 
 function Protected({ children }: { children: ReactNode }) {
@@ -122,6 +132,8 @@ export default function App() {
         <Route path="organizations/:id" element={<AdminOrganizationDetail />} />
         <Route path="consultants" element={<AdminConsultants />} />
         <Route path="consultants/:id" element={<AdminConsultantDetail />} />
+        <Route path="course-queue" element={<AdminCourseQueue />} />
+        <Route path="trainer-queue" element={<AdminTrainerQueue />} />
       </Route>
 
       <Route
@@ -137,6 +149,7 @@ export default function App() {
         <Route path="tenders" element={<ProviderTenders />} />
         <Route path="tenders/:id" element={<ProviderTenderDetail />} />
         <Route path="bids" element={<ProviderBids />} />
+        <Route path="notifications" element={<ProviderNotifications />} />
       </Route>
 
       <Route
@@ -149,10 +162,17 @@ export default function App() {
       >
         <Route index element={<OrgHome />} />
         <Route path="staff" element={<OrgStaff />} />
+        <Route path="consultants" element={<OrgConsultants />} />
+        <Route path="consultants/:id" element={<OrgConsultantDetail />} />
         <Route path="browse" element={<OrgBrowse />} />
+        <Route path="inhouse" element={<OrgInhouse />} />
         <Route path="tenders" element={<OrgTenders />} />
         <Route path="tenders/:id" element={<OrgTenderDetail />} />
+        <Route path="bookings" element={<OrgBookings />} />
+        <Route path="calendar" element={<OrgCalendar />} />
+        <Route path="records" element={<OrgRecords />} />
         <Route path="reports" element={<OrgReports />} />
+        <Route path="profile" element={<OrgProfile />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

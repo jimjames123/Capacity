@@ -137,8 +137,30 @@ model Organization {
   contactPhone String?
   createdAt    DateTime @default(now())
 
-  staff   Staff[]
-  tenders Tender[]
+  staff    Staff[]
+  tenders  Tender[]
+  bookings Booking[]
+}
+
+model Booking {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  providerName   String?
+  category       String?  // HR | Finance | Engineering | Marketing | Cross-industry
+  staffCount     Int      @default(1)
+  date           DateTime
+  cost           String   // e.g. "UGX 4,200,000"
+  paid           Boolean  @default(false)
+  // SCHEDULED | COMPLETED | CANCELLED
+  status         String   @default("SCHEDULED")
+  attendance     Int?     // actuals, set once completed
+  certificateIssued Boolean @default(false)
+  outcome        String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
 }
 
 model Tender {

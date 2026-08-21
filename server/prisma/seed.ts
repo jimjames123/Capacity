@@ -550,6 +550,30 @@ async function main() {
     },
   });
 
+  // A newly-registered provider awaiting verification (trainer approval queue).
+  await prisma.provider.create({
+    data: {
+      name: "Pearl Leadership Partners",
+      initials: "PL",
+      type: "Individual consultant",
+      verified: false,
+      rating: 0,
+      meta: "Entebbe · new applicant",
+      bio: "Leadership and governance consultancy applying to join the CPD provider rail.",
+    },
+  });
+
+  // ---- Bookings (NWSC training bookings & records) -------------------------
+  await prisma.booking.createMany({
+    data: [
+      { organizationId: nwsc.id, title: "Strategic Workforce Planning", providerName: "Makerere Executive Institute", category: "HR", staffCount: 8, date: new Date("2026-03-12"), cost: "UGX 2,800,000", paid: true, status: "COMPLETED", attendance: 8, certificateIssued: true, outcome: "All participants completed; 3 CPD points awarded each." },
+      { organizationId: nwsc.id, title: "IFRS Update & Practical Application 2026", providerName: "Deloitte Uganda Academy", category: "Finance", staffCount: 5, date: new Date("2026-04-18"), cost: "UGX 2,400,000", paid: true, status: "COMPLETED", attendance: 4, certificateIssued: true, outcome: "One deferral; certificates issued to attendees." },
+      { organizationId: nwsc.id, title: "Structural Integrity & Safety Auditing", providerName: "Uganda Institute of Applied Professionals", category: "Engineering", staffCount: 6, date: new Date("2026-06-04"), cost: "UGX 3,720,000", paid: false, status: "SCHEDULED", attendance: null, certificateIssued: false, outcome: null },
+      { organizationId: nwsc.id, title: "Leading Change in Public Institutions", providerName: "Dr. Grace Ssembatya", category: "Cross-industry", staffCount: 12, date: new Date("2026-07-22"), cost: "UGX 6,480,000", paid: false, status: "SCHEDULED", attendance: null, certificateIssued: false, outcome: null },
+      { organizationId: nwsc.id, title: "Employment Law for HR Professionals", providerName: "Makerere Executive Institute", category: "HR", staffCount: 4, date: new Date("2026-09-09"), cost: "UGX 1,040,000", paid: false, status: "SCHEDULED", attendance: null, certificateIssued: false, outcome: null },
+    ],
+  });
+
   console.log("Seed complete (all password123): member aisha@example.com · provider provider@example.com · org org@example.com · registrar registrar@example.com");
 }
 

@@ -4,6 +4,8 @@ import { useAuth } from "../lib/auth";
 const NAV = [
   { to: "/admin", label: "Overview", end: true },
   { to: "/admin/queue", label: "Verification queue", end: false },
+  { to: "/admin/course-queue", label: "Course approvals", end: false },
+  { to: "/admin/trainer-queue", label: "Trainer approvals", end: false },
   { to: "/admin/members", label: "Members", end: false },
   { to: "/admin/organizations", label: "Organizations", end: false },
   { to: "/admin/consultants", label: "Consultants", end: false },

@@ -23,7 +23,7 @@ import type {
 } from "./types";
 
 // Bump when the seed shape changes so returning visitors get fresh demo data.
-const LS_KEY = "cs_static_db_v5";
+const LS_KEY = "cs_static_db_v6";
 
 interface StoredUser extends User {
   password: string;
@@ -40,6 +40,7 @@ interface DB {
   courses: RawCourse[];
   tenders: DbTender[];
   bids: DbBid[];
+  bookings: DbBooking[];
 }
 
 // ---- Static catalogue (providers, courses, reviews) ------------------------
@@ -72,12 +73,30 @@ interface DbBid {
   createdAt: string;
 }
 
+interface DbBooking {
+  id: string;
+  organizationId: string;
+  title: string;
+  providerName: string | null;
+  category: string | null;
+  staffCount: number;
+  date: string;
+  cost: string;
+  paid: boolean;
+  status: string;
+  attendance: number | null;
+  certificateIssued: boolean;
+  outcome: string | null;
+  createdAt: string;
+}
+
 const PROVIDER_SEED: Provider[] = [
   { id: "p1", name: "Makerere Executive Institute", initials: "ME", type: "Institution", verified: true, rating: 4.9, meta: "Kampala · 22 courses", bio: "The executive education arm of Makerere University, delivering accredited professional programmes across disciplines since 2009." },
   { id: "p2", name: "Deloitte Uganda Academy", initials: "DA", type: "Training company", verified: true, rating: 4.8, meta: "Kampala · 15 courses", bio: "Professional training from Deloitte's East Africa practice, covering finance, risk, and governance." },
   { id: "p3", name: "Uganda Institute of Applied Professionals", initials: "UI", type: "Institution", verified: true, rating: 4.7, meta: "Jinja · 9 courses", bio: "Hands-on technical and engineering CPD delivered by practising professionals." },
   { id: "p4", name: "BrandHouse East Africa", initials: "BH", type: "Training company", verified: true, rating: 4.6, meta: "Kampala · 7 courses", bio: "Marketing, communications, and brand strategy training for the region." },
   { id: "p5", name: "Dr. Grace Ssembatya", initials: "GS", type: "Individual consultant", verified: true, rating: 4.9, meta: "Independent · 5 courses", bio: "Organisational development consultant with 18 years across public-sector reform programmes." },
+  { id: "p6", name: "Pearl Leadership Partners", initials: "PL", type: "Individual consultant", verified: false, rating: 0, meta: "Entebbe · new applicant", bio: "Leadership and governance consultancy applying to join the CPD provider rail." },
 ];
 
 const reviewsByCourse: Record<string, Review[]> = {
@@ -272,6 +291,13 @@ function seed(): DB {
     courses: [...COURSE_SEED.map((c) => ({ ...c })), ...providerCourses],
     tenders,
     bids,
+    bookings: [
+      { id: "bk1", organizationId: "org_nwsc", title: "Strategic Workforce Planning", providerName: "Makerere Executive Institute", category: "HR", staffCount: 8, date: iso("2026-03-12"), cost: "UGX 2,800,000", paid: true, status: "COMPLETED", attendance: 8, certificateIssued: true, outcome: "All participants completed; 3 CPD points awarded each.", createdAt: iso("2026-02-20") },
+      { id: "bk2", organizationId: "org_nwsc", title: "IFRS Update & Practical Application 2026", providerName: "Deloitte Uganda Academy", category: "Finance", staffCount: 5, date: iso("2026-04-18"), cost: "UGX 2,400,000", paid: true, status: "COMPLETED", attendance: 4, certificateIssued: true, outcome: "One deferral; certificates issued to attendees.", createdAt: iso("2026-03-25") },
+      { id: "bk3", organizationId: "org_nwsc", title: "Structural Integrity & Safety Auditing", providerName: "Uganda Institute of Applied Professionals", category: "Engineering", staffCount: 6, date: iso("2026-06-04"), cost: "UGX 3,720,000", paid: false, status: "SCHEDULED", attendance: null, certificateIssued: false, outcome: null, createdAt: iso("2026-04-30") },
+      { id: "bk4", organizationId: "org_nwsc", title: "Leading Change in Public Institutions", providerName: "Dr. Grace Ssembatya", category: "Cross-industry", staffCount: 12, date: iso("2026-07-22"), cost: "UGX 6,480,000", paid: false, status: "SCHEDULED", attendance: null, certificateIssued: false, outcome: null, createdAt: iso("2026-05-10") },
+      { id: "bk5", organizationId: "org_nwsc", title: "Employment Law for HR Professionals", providerName: "Makerere Executive Institute", category: "HR", staffCount: 4, date: iso("2026-09-09"), cost: "UGX 1,040,000", paid: false, status: "SCHEDULED", attendance: null, certificateIssued: false, outcome: null, createdAt: iso("2026-06-01") },
+    ],
   };
 }
 
@@ -1223,6 +1249,128 @@ export async function handle(method: string, path: string, body: unknown): Promi
       },
       bidsReceived: db.bids.filter((b2) => tenderIds.includes(b2.tenderId) && VISIBLE_BID.includes(b2.status)).length,
     };
+  }
+
+  // --- Organization: profile ---
+  if (method === "GET" && rawPath === "/organization/profile") {
+    const oid = requireOrg(db);
+    return { organization: db.organizations.find((o) => o.id === oid) ?? null };
+  }
+  if (method === "PATCH" && rawPath === "/organization/profile") {
+    const oid = requireOrg(db);
+    const org = db.organizations.find((o) => o.id === oid);
+    if (!org) throw { status: 404, error: "Organization not found" };
+    for (const k of ["name", "sector", "district", "contactName", "contactEmail", "contactPhone"] as const) {
+      if (b[k] !== undefined) (org as any)[k] = b[k];
+    }
+    save(db);
+    return { ok: true };
+  }
+
+  // --- Organization: consultant directory ---
+  if (method === "GET" && rawPath === "/organization/consultants") {
+    requireOrg(db);
+    const list = db.providers
+      .slice()
+      .sort((a, b2) => (a.verified === b2.verified ? b2.rating - a.rating : a.verified ? -1 : 1))
+      .map((p) => ({
+        id: p.id, name: p.name, initials: p.initials, type: p.type,
+        verified: p.verified, rating: p.rating, meta: p.meta, bio: p.bio,
+        courseCount: db.courses.filter((c) => c.providerId === p.id).length,
+      }));
+    return { consultants: list };
+  }
+  if (method === "GET" && /^\/organization\/consultants\/[^/]+$/.test(rawPath)) {
+    requireOrg(db);
+    const id = rawPath.split("/")[3];
+    const p = db.providers.find((x) => x.id === id);
+    if (!p) throw { status: 404, error: "Consultant not found" };
+    return {
+      consultant: {
+        id: p.id, name: p.name, initials: p.initials, type: p.type,
+        verified: p.verified, rating: p.rating, meta: p.meta, bio: p.bio,
+        courses: db.courses.filter((c) => c.providerId === id && c.status === "APPROVED").map((c) => ({ id: c.id, title: c.title, profession: c.profession, format: c.format, points: c.points, fee: c.fee, schedule: c.schedule })),
+      },
+    };
+  }
+
+  // --- Organization: bookings ---
+  if (method === "GET" && rawPath === "/organization/bookings") {
+    const oid = requireOrg(db);
+    return { bookings: db.bookings.filter((bk) => bk.organizationId === oid).sort((a, b2) => +new Date(a.date) - +new Date(b2.date)) };
+  }
+  if (method === "POST" && rawPath === "/organization/bookings") {
+    const oid = requireOrg(db);
+    const bk: DbBooking = {
+      id: uid("bk_"), organizationId: oid, title: b.title, providerName: b.providerName ?? null,
+      category: b.category ?? null, staffCount: Number(b.staffCount), date: iso(b.date),
+      cost: b.cost, paid: false, status: "SCHEDULED", attendance: null, certificateIssued: false,
+      outcome: null, createdAt: new Date().toISOString(),
+    };
+    db.bookings.push(bk);
+    save(db);
+    return { id: bk.id };
+  }
+  if (method === "PATCH" && /^\/organization\/bookings\/[^/]+$/.test(rawPath)) {
+    const oid = requireOrg(db);
+    const id = rawPath.split("/")[3];
+    const bk = db.bookings.find((x) => x.id === id && x.organizationId === oid);
+    if (!bk) throw { status: 404, error: "Booking not found" };
+    for (const k of ["title", "providerName", "category", "cost", "status", "outcome"] as const) {
+      if (b[k] !== undefined) (bk as any)[k] = b[k];
+    }
+    if (b.staffCount !== undefined) bk.staffCount = Number(b.staffCount);
+    if (b.date !== undefined) bk.date = iso(b.date);
+    if (b.paid !== undefined) bk.paid = !!b.paid;
+    if (b.attendance !== undefined) bk.attendance = Number(b.attendance);
+    if (b.certificateIssued !== undefined) bk.certificateIssued = !!b.certificateIssued;
+    save(db);
+    return { ok: true };
+  }
+  if (method === "DELETE" && /^\/organization\/bookings\/[^/]+$/.test(rawPath)) {
+    const oid = requireOrg(db);
+    const id = rawPath.split("/")[3];
+    if (!db.bookings.some((x) => x.id === id && x.organizationId === oid)) throw { status: 404, error: "Booking not found" };
+    db.bookings = db.bookings.filter((x) => x.id !== id);
+    save(db);
+    return { ok: true };
+  }
+
+  // --- Admin: course & trainer approval queues ---
+  if (method === "GET" && rawPath === "/admin/course-queue") {
+    requireAdmin(db);
+    const q = db.courses.filter((c) => c.status === "PENDING").map((c) => {
+      const p = db.providers.find((pp) => pp.id === c.providerId);
+      return { id: c.id, title: c.title, description: c.description, profession: c.profession, format: c.format, points: c.points, fee: c.fee, schedule: c.schedule, seats: c.seats, provider: { id: c.providerId, name: p?.name ?? "Provider", initials: p?.initials ?? "?", verified: p?.verified ?? false } };
+    });
+    return { queue: q };
+  }
+  if (method === "POST" && /^\/admin\/courses\/[^/]+\/approve$/.test(rawPath)) {
+    requireAdmin(db);
+    const id = rawPath.split("/")[3];
+    const c = db.courses.find((x) => x.id === id);
+    if (!c) throw { status: 404, error: "Course not found" };
+    c.status = "APPROVED"; c.verified = true;
+    if (typeof b.points === "number") c.points = b.points;
+    save(db);
+    return { ok: true };
+  }
+  if (method === "POST" && /^\/admin\/courses\/[^/]+\/reject$/.test(rawPath)) {
+    requireAdmin(db);
+    const id = rawPath.split("/")[3];
+    const c = db.courses.find((x) => x.id === id);
+    if (!c) throw { status: 404, error: "Course not found" };
+    c.status = "REJECTED";
+    save(db);
+    return { ok: true };
+  }
+  if (method === "GET" && rawPath === "/admin/trainer-queue") {
+    requireAdmin(db);
+    const q = db.providers.filter((p) => !p.verified).map((p) => ({
+      id: p.id, name: p.name, initials: p.initials, type: p.type,
+      meta: p.meta, bio: p.bio, courseCount: db.courses.filter((c) => c.providerId === p.id).length,
+    }));
+    return { queue: q };
   }
 
   throw { status: 404, error: "Not found" };

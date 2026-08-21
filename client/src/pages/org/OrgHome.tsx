@@ -37,7 +37,7 @@ export default function OrgHome() {
         </div>
         <div className="flex gap-3">
           <Link to="/org/tenders" className="btn-primary">+ Post a tender</Link>
-          <Link to="/org/browse" className="btn-ghost">Browse training</Link>
+          <Link to="/org/profile" className="btn-ghost">Edit profile</Link>
         </div>
       </div>
 

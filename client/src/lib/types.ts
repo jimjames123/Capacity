@@ -142,6 +142,44 @@ export interface OrgReport {
   bidsReceived: number;
 }
 
+export interface Booking {
+  id: string;
+  title: string;
+  providerName: string | null;
+  category: string | null;
+  staffCount: number;
+  date: string;
+  cost: string;
+  paid: boolean;
+  status: "SCHEDULED" | "COMPLETED" | "CANCELLED";
+  attendance: number | null;
+  certificateIssued: boolean;
+  outcome: string | null;
+}
+
+export interface CourseQueueItem {
+  id: string;
+  title: string;
+  description: string;
+  profession: string;
+  format: CourseFormat;
+  points: number;
+  fee: string;
+  schedule: string;
+  seats: number;
+  provider: { id: string; name: string; initials: string; verified: boolean };
+}
+
+export interface TrainerQueueItem {
+  id: string;
+  name: string;
+  initials: string;
+  type: string;
+  meta: string | null;
+  bio: string | null;
+  courseCount: number;
+}
+
 export interface ProviderProfile {
   id: string;
   name: string;
