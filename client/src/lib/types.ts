@@ -11,7 +11,89 @@ export interface User {
   jobTitle: string | null;
   organisation: string | null;
   onboarded: boolean;
+  providerId?: string | null;
   createdAt: string;
+}
+
+export type CourseStatus = "APPROVED" | "PENDING" | "REJECTED";
+
+export interface ProviderCourse {
+  id: string;
+  title: string;
+  description: string;
+  profession: string;
+  format: CourseFormat;
+  points: number;
+  fee: string;
+  schedule: string;
+  seats: number;
+  status: CourseStatus;
+  enrolments: number;
+}
+
+export interface ProviderStats {
+  courses: number;
+  approved: number;
+  pending: number;
+  enrolments: number;
+  openTenders: number;
+  bids: number;
+  submittedBids: number;
+}
+
+export type BidStatus = "DRAFT" | "SUBMITTED" | "SHORTLISTED" | "ACCEPTED" | "REJECTED";
+
+export interface TenderOrg {
+  id: string;
+  name: string;
+  sector: string | null;
+  district: string | null;
+}
+
+export interface Tender {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  deliveryMode: string;
+  budget: string;
+  seats: number;
+  deadline: string;
+  status: string;
+  organization: TenderOrg;
+}
+
+export interface TenderBoardItem extends Tender {
+  bidCount: number;
+  myBidStatus: BidStatus | null;
+}
+
+export interface Bid {
+  id: string;
+  amount: string;
+  proposal: string;
+  docFileName: string | null;
+  status: BidStatus;
+  createdAt: string;
+  tender: {
+    id: string;
+    title: string;
+    budget: string;
+    deadline: string;
+    category: string;
+    organizationName: string;
+  };
+}
+
+export interface ProviderProfile {
+  id: string;
+  name: string;
+  initials: string;
+  type: string;
+  verified: boolean;
+  rating: number;
+  meta: string | null;
+  bio: string | null;
 }
 
 export type EntryStatus = "VERIFIED" | "PENDING" | "NEEDS_PROOF" | "REJECTED";

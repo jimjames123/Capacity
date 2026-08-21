@@ -42,6 +42,20 @@ export const FORMAT_META: Record<CourseFormat, string> = {
   HYBRID: "Hybrid",
 };
 
+export const BID_STATUS_META: Record<string, { label: string; className: string }> = {
+  DRAFT: { label: "Draft", className: "bg-[#EEF2F2] text-muted border border-line" },
+  SUBMITTED: { label: "Submitted", className: "bg-amber-soft text-amber border border-amber-line" },
+  SHORTLISTED: { label: "Shortlisted", className: "bg-green-soft text-green border border-green-line" },
+  ACCEPTED: { label: "Accepted", className: "bg-green-soft text-green border border-green-line" },
+  REJECTED: { label: "Rejected", className: "bg-rust-soft text-rust border border-rust-line" },
+};
+
+export const COURSE_STATUS_META: Record<string, { label: string; className: string }> = {
+  APPROVED: { label: "Approved", className: "bg-green-soft text-green border border-green-line" },
+  PENDING: { label: "Pending approval", className: "bg-amber-soft text-amber border border-amber-line" },
+  REJECTED: { label: "Rejected", className: "bg-rust-soft text-rust border border-rust-line" },
+};
+
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", {
     day: "numeric",

@@ -417,7 +417,104 @@ async function main() {
     ],
   });
 
-  console.log("Seed complete: demo member aisha@example.com / password123");
+  // ---- Provider login (BrandHouse East Africa) ----------------------------
+  await prisma.user.create({
+    data: {
+      name: "BrandHouse East Africa",
+      email: "provider@example.com",
+      passwordHash: await bcrypt.hash("password123", 10),
+      role: "PROVIDER",
+      providerId: brandhouse.id,
+      onboarded: true,
+    },
+  });
+  // A pending listing submitted by the provider (awaiting admin approval).
+  await prisma.course.create({
+    data: {
+      providerId: brandhouse.id,
+      title: "Crisis Communications for Public Bodies",
+      description:
+        "A practical workshop on managing communications during incidents and public scrutiny, with media-handling drills.",
+      profession: "Marketing",
+      format: "IN_PERSON",
+      points: 2,
+      rating: 0,
+      reviewsCount: 0,
+      schedule: "Starts 6 May · 1 day",
+      fee: "UGX 340,000",
+      seats: 25,
+      verified: false,
+      status: "PENDING",
+    },
+  });
+
+  // ---- Tenders (posted by organizations) ----------------------------------
+  const t1 = await prisma.tender.create({
+    data: {
+      organizationId: nwsc.id,
+      title: "Leadership development programme for 40 managers",
+      description:
+        "We are seeking an accredited provider to design and deliver a leadership development programme for 40 mid-level managers across our regional offices. CPD points required.",
+      category: "HR",
+      deliveryMode: "Hybrid",
+      budget: "UGX 48,000,000",
+      seats: 40,
+      deadline: new Date("2026-06-15"),
+      status: "OPEN",
+    },
+  });
+  const t2 = await prisma.tender.create({
+    data: {
+      organizationId: stanbic.id,
+      title: "IFRS & risk refresher for finance team",
+      description:
+        "Two-day in-house refresher on IFRS 2026 amendments and internal controls for a finance team of 22. Must carry CPD accreditation.",
+      category: "Finance",
+      deliveryMode: "In-person",
+      budget: "UGX 22,000,000",
+      seats: 22,
+      deadline: new Date("2026-05-30"),
+      status: "OPEN",
+    },
+  });
+  await prisma.tender.create({
+    data: {
+      organizationId: ura.id,
+      title: "Digital marketing upskilling for comms unit",
+      description:
+        "Online, self-paced digital marketing analytics training for our 12-person communications unit, with a live workshop to close.",
+      category: "Marketing",
+      deliveryMode: "Online",
+      budget: "UGX 9,000,000",
+      seats: 12,
+      deadline: new Date("2026-06-05"),
+      status: "OPEN",
+    },
+  });
+
+  // A submitted bid + a draft from the demo provider.
+  await prisma.bid.create({
+    data: {
+      tenderId: t2.id,
+      providerId: brandhouse.id,
+      amount: "UGX 20,500,000",
+      proposal:
+        "We propose a tailored two-day programme combining IFRS 2026 updates with hands-on controls case studies drawn from banking. Includes pre-reading and a post-course assessment.",
+      docFileName: "brandhouse-ifrs-proposal.pdf",
+      status: "SUBMITTED",
+    },
+  });
+  await prisma.bid.create({
+    data: {
+      tenderId: t1.id,
+      providerId: brandhouse.id,
+      amount: "UGX 44,000,000",
+      proposal: "Draft outline — leadership tracks by seniority with coaching pods.",
+      status: "DRAFT",
+    },
+  });
+
+  console.log("Seed complete: member aisha@example.com, provider provider@example.com, registrar registrar@example.com (all password123)");
 }
 
 main()

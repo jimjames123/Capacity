@@ -19,6 +19,12 @@ import AdminOrganizations from "./pages/admin/AdminOrganizations";
 import AdminOrganizationDetail from "./pages/admin/AdminOrganizationDetail";
 import AdminConsultants from "./pages/admin/AdminConsultants";
 import AdminConsultantDetail from "./pages/admin/AdminConsultantDetail";
+import { ProviderLayout } from "./components/ProviderLayout";
+import ProviderHome from "./pages/provider/ProviderHome";
+import ProviderCourses from "./pages/provider/ProviderCourses";
+import ProviderTenders from "./pages/provider/ProviderTenders";
+import ProviderTenderDetail from "./pages/provider/ProviderTenderDetail";
+import ProviderBids from "./pages/provider/ProviderBids";
 import type { ReactNode } from "react";
 
 function Protected({ children }: { children: ReactNode }) {
@@ -26,6 +32,7 @@ function Protected({ children }: { children: ReactNode }) {
   if (loading) return <FullScreenLoader />;
   if (!user) return <Navigate to="/signin" replace />;
   if (user.role === "ADMIN") return <Navigate to="/admin" replace />;
+  if (user.role === "PROVIDER") return <Navigate to="/provider" replace />;
   if (!user.onboarded) return <Navigate to="/onboard" replace />;
   return <>{children}</>;
 }
@@ -35,6 +42,14 @@ function AdminProtected({ children }: { children: ReactNode }) {
   if (loading) return <FullScreenLoader />;
   if (!user) return <Navigate to="/signin" replace />;
   if (user.role !== "ADMIN") return <Navigate to="/app" replace />;
+  return <>{children}</>;
+}
+
+function ProviderProtected({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <FullScreenLoader />;
+  if (!user) return <Navigate to="/signin" replace />;
+  if (user.role !== "PROVIDER") return <Navigate to="/app" replace />;
   return <>{children}</>;
 }
 
@@ -91,6 +106,21 @@ export default function App() {
         <Route path="organizations/:id" element={<AdminOrganizationDetail />} />
         <Route path="consultants" element={<AdminConsultants />} />
         <Route path="consultants/:id" element={<AdminConsultantDetail />} />
+      </Route>
+
+      <Route
+        path="/provider"
+        element={
+          <ProviderProtected>
+            <ProviderLayout />
+          </ProviderProtected>
+        }
+      >
+        <Route index element={<ProviderHome />} />
+        <Route path="courses" element={<ProviderCourses />} />
+        <Route path="tenders" element={<ProviderTenders />} />
+        <Route path="tenders/:id" element={<ProviderTenderDetail />} />
+        <Route path="bids" element={<ProviderBids />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

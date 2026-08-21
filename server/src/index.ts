@@ -6,6 +6,7 @@ import { cpdRouter } from "./routes/cpd.js";
 import { coursesRouter } from "./routes/courses.js";
 import { recordRouter } from "./routes/record.js";
 import { adminRouter } from "./routes/admin.js";
+import { providerRouter } from "./routes/provider.js";
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use("/api/cpd", cpdRouter);
 app.use("/api/courses", coursesRouter);
 app.use("/api/record", recordRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/provider", providerRouter);
 
 // Fallback JSON 404 for unknown API routes.
 app.use((_req, res) => {

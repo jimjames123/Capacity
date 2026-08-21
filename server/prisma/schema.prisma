@@ -24,6 +24,8 @@ model User {
   jobTitle         String?
   organisation     String?
   onboarded        Boolean  @default(false)
+  // For PROVIDER accounts: the provider profile they manage.
+  providerId       String?
   createdAt        DateTime @default(now())
 
   cycles      Cycle[]
@@ -82,6 +84,7 @@ model Provider {
   createdAt     DateTime @default(now())
 
   courses Course[]
+  bids    Bid[]
 }
 
 model Course {
@@ -100,6 +103,8 @@ model Course {
   fee          String   // e.g. "UGX 450,000" or "Free"
   seats        Int      @default(30)
   verified     Boolean  @default(true)
+  // APPROVED | PENDING | REJECTED — provider-created listings start PENDING.
+  status       String   @default("APPROVED")
   createdAt    DateTime @default(now())
 
   reviews     Review[]
@@ -130,7 +135,46 @@ model Organization {
   contactPhone String?
   createdAt    DateTime @default(now())
 
-  staff Staff[]
+  staff   Staff[]
+  tenders Tender[]
+}
+
+model Tender {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  description    String
+  category       String   // HR | Finance | Engineering | Marketing | Cross-industry
+  // In-person | Online | Hybrid | Flexible
+  deliveryMode   String   @default("Flexible")
+  budget         String   // e.g. "UGX 4,000,000"
+  seats          Int      @default(20)
+  deadline       DateTime
+  // OPEN | CLOSED | AWARDED
+  status         String   @default("OPEN")
+  createdAt      DateTime @default(now())
+
+  bids Bid[]
+
+  @@index([organizationId])
+}
+
+model Bid {
+  id         String   @id @default(cuid())
+  tenderId   String
+  tender     Tender   @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  amount     String   // e.g. "UGX 3,600,000"
+  proposal   String
+  docFileName String?
+  // DRAFT | SUBMITTED | SHORTLISTED | ACCEPTED | REJECTED
+  status     String   @default("SUBMITTED")
+  createdAt  DateTime @default(now())
+
+  @@unique([tenderId, providerId])
+  @@index([providerId])
 }
 
 model Staff {

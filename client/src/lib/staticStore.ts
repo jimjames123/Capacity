@@ -11,6 +11,7 @@
  */
 import type {
   Course,
+  CourseStatus,
   CpdEntry,
   Cycle,
   EntryStatus,
@@ -22,7 +23,7 @@ import type {
 } from "./types";
 
 // Bump when the seed shape changes so returning visitors get fresh demo data.
-const LS_KEY = "cs_static_db_v3";
+const LS_KEY = "cs_static_db_v4";
 
 interface StoredUser extends User {
   password: string;
@@ -37,13 +38,39 @@ interface DB {
   staff: Staff[];
   providers: Provider[];
   courses: RawCourse[];
+  tenders: DbTender[];
+  bids: DbBid[];
 }
 
 // ---- Static catalogue (providers, courses, reviews) ------------------------
 // Providers and courses are seeded into the DB so the admin can manage them;
 // reviews stay constant (they aren't edited from the admin console).
 
-type RawCourse = Omit<Course, "provider"> & { providerId: string };
+type RawCourse = Omit<Course, "provider"> & { providerId: string; status: CourseStatus };
+
+interface DbTender {
+  id: string;
+  organizationId: string;
+  title: string;
+  description: string;
+  category: string;
+  deliveryMode: string;
+  budget: string;
+  seats: number;
+  deadline: string;
+  status: string;
+}
+
+interface DbBid {
+  id: string;
+  tenderId: string;
+  providerId: string;
+  amount: string;
+  proposal: string;
+  docFileName: string | null;
+  status: string;
+  createdAt: string;
+}
 
 const PROVIDER_SEED: Provider[] = [
   { id: "p1", name: "Makerere Executive Institute", initials: "ME", type: "Institution", verified: true, rating: 4.9, meta: "Kampala · 22 courses", bio: "The executive education arm of Makerere University, delivering accredited professional programmes across disciplines since 2009." },
@@ -88,7 +115,7 @@ function mkCourse(
   profession: string, format: Course["format"], points: number, rating: number,
   reviewsCount: number, schedule: string, fee: string, seats: number,
 ): RawCourse {
-  return { id, providerId, title, description, profession, format, points, rating, reviewsCount, schedule, fee, seats, verified: true };
+  return { id, providerId, title, description, profession, format, points, rating, reviewsCount, schedule, fee, seats, verified: true, status: "APPROVED" };
 }
 
 function iso(d: string): string {
@@ -133,6 +160,21 @@ function seed(): DB {
       jobTitle: "Registrar",
       organisation: null,
       onboarded: true,
+      createdAt: iso("2025-10-01"),
+    },
+    {
+      id: "u_provider",
+      email: "provider@example.com",
+      password: "password123",
+      name: "BrandHouse East Africa",
+      role: "PROVIDER",
+      profession: null,
+      membershipNo: null,
+      professionalBody: null,
+      jobTitle: null,
+      organisation: null,
+      onboarded: true,
+      providerId: "p4",
       createdAt: iso("2025-10-01"),
     },
   ];
@@ -181,6 +223,27 @@ function seed(): DB {
     mkStaff("st6", "org_ura", "Samuel Wanyama", "samuel.w@ura.example.ug", "Tax Officer", "Finance", "ICP-2020-0771"),
   ];
 
+  // Provider (p4 / BrandHouse) has a pending listing awaiting approval.
+  const providerCourses: RawCourse[] = [
+    {
+      id: "pc1", providerId: "p4", title: "Crisis Communications for Public Bodies",
+      description: "A practical workshop on managing communications during incidents and public scrutiny, with media-handling drills.",
+      profession: "Marketing", format: "IN_PERSON", points: 2, rating: 0, reviewsCount: 0,
+      schedule: "Starts 6 May · 1 day", fee: "UGX 340,000", seats: 25, verified: false, status: "PENDING",
+    },
+  ];
+
+  const tenders: DbTender[] = [
+    { id: "tn1", organizationId: "org_nwsc", title: "Leadership development programme for 40 managers", description: "We are seeking an accredited provider to design and deliver a leadership development programme for 40 mid-level managers across our regional offices. CPD points required.", category: "HR", deliveryMode: "Hybrid", budget: "UGX 48,000,000", seats: 40, deadline: iso("2026-06-15"), status: "OPEN" },
+    { id: "tn2", organizationId: "org_stanbic", title: "IFRS & risk refresher for finance team", description: "Two-day in-house refresher on IFRS 2026 amendments and internal controls for a finance team of 22. Must carry CPD accreditation.", category: "Finance", deliveryMode: "In-person", budget: "UGX 22,000,000", seats: 22, deadline: iso("2026-05-30"), status: "OPEN" },
+    { id: "tn3", organizationId: "org_ura", title: "Digital marketing upskilling for comms unit", description: "Online, self-paced digital marketing analytics training for our 12-person communications unit, with a live workshop to close.", category: "Marketing", deliveryMode: "Online", budget: "UGX 9,000,000", seats: 12, deadline: iso("2026-06-05"), status: "OPEN" },
+  ];
+
+  const bids: DbBid[] = [
+    { id: "bd1", tenderId: "tn2", providerId: "p4", amount: "UGX 20,500,000", proposal: "We propose a tailored two-day programme combining IFRS 2026 updates with hands-on controls case studies drawn from banking. Includes pre-reading and a post-course assessment.", docFileName: "brandhouse-ifrs-proposal.pdf", status: "SUBMITTED", createdAt: iso("2026-04-10") },
+    { id: "bd2", tenderId: "tn1", providerId: "p4", amount: "UGX 44,000,000", proposal: "Draft outline — leadership tracks by seniority with coaching pods.", docFileName: null, status: "DRAFT", createdAt: iso("2026-04-12") },
+  ];
+
   return {
     users,
     cycles,
@@ -189,7 +252,9 @@ function seed(): DB {
     organizations,
     staff,
     providers: PROVIDER_SEED.map((p) => ({ ...p })),
-    courses: COURSE_SEED.map((c) => ({ ...c })),
+    courses: [...COURSE_SEED.map((c) => ({ ...c })), ...providerCourses],
+    tenders,
+    bids,
   };
 }
 
@@ -254,6 +319,39 @@ function requireAdmin(db: DB): StoredUser {
   const u = requireUser(db);
   if (u.role !== "ADMIN") throw { status: 403, error: "Admin access required" };
   return u;
+}
+
+function requireProvider(db: DB): string {
+  const u = requireUser(db);
+  if (u.role !== "PROVIDER" || !u.providerId) throw { status: 403, error: "Provider access required" };
+  return u.providerId;
+}
+
+function orgLite(db: DB, id: string) {
+  const o = db.organizations.find((x) => x.id === id);
+  return { id, name: o?.name ?? "Organization", sector: o?.sector ?? null, district: o?.district ?? null };
+}
+
+function tenderView(db: DB, t: DbTender) {
+  return {
+    id: t.id, title: t.title, description: t.description, category: t.category,
+    deliveryMode: t.deliveryMode, budget: t.budget, seats: t.seats,
+    deadline: t.deadline, status: t.status, organization: orgLite(db, t.organizationId),
+  };
+}
+
+function bidView(db: DB, b: DbBid) {
+  const t = db.tenders.find((x) => x.id === b.tenderId);
+  const org = t ? orgLite(db, t.organizationId) : null;
+  return {
+    id: b.id, amount: b.amount, proposal: b.proposal, docFileName: b.docFileName,
+    status: b.status, createdAt: b.createdAt,
+    tender: {
+      id: t?.id ?? b.tenderId, title: t?.title ?? "Tender", budget: t?.budget ?? "",
+      deadline: t?.deadline ?? "", category: t?.category ?? "",
+      organizationName: org?.name ?? "Organization",
+    },
+  };
 }
 
 /** Issues a certificate for a completed cycle if one hasn't been issued. */
@@ -362,7 +460,7 @@ export async function handle(method: string, path: string, body: unknown): Promi
   if (method === "GET" && rawPath === "/courses") {
     const prof = query.get("profession");
     const fmt = query.get("format");
-    let list = db.courses.map((c) => resolveCourse(db, c));
+    let list = db.courses.filter((c) => c.status === "APPROVED").map((c) => resolveCourse(db, c));
     if (prof && prof !== "All") list = list.filter((c) => c.profession === prof);
     if (fmt && fmt !== "All") list = list.filter((c) => c.format === fmt);
     list.sort((a, b2) => b2.rating - a.rating);
@@ -795,6 +893,144 @@ export async function handle(method: string, path: string, body: unknown): Promi
     db.enrollments = db.enrollments.filter((e) => !courseIds.includes(e.courseId));
     db.courses = db.courses.filter((c) => c.providerId !== id);
     db.providers = db.providers.filter((x) => x.id !== id);
+    save(db);
+    return { ok: true };
+  }
+
+  // --- Provider ---
+  if (method === "GET" && rawPath === "/provider/home") {
+    const pid = requireProvider(db);
+    const provider = db.providers.find((p) => p.id === pid) ?? null;
+    const myCourses = db.courses.filter((c) => c.providerId === pid);
+    const myBids = db.bids
+      .filter((b) => b.providerId === pid)
+      .sort((a, b2) => +new Date(b2.createdAt) - +new Date(a.createdAt));
+    const enrolments = myCourses.reduce(
+      (s, c) => s + db.enrollments.filter((e) => e.courseId === c.id).length,
+      0,
+    );
+    return {
+      provider,
+      stats: {
+        courses: myCourses.length,
+        approved: myCourses.filter((c) => c.status === "APPROVED").length,
+        pending: myCourses.filter((c) => c.status === "PENDING").length,
+        enrolments,
+        openTenders: db.tenders.filter((t) => t.status === "OPEN").length,
+        bids: myBids.length,
+        submittedBids: myBids.filter((b) => b.status === "SUBMITTED").length,
+      },
+      recentBids: myBids.slice(0, 4).map((b) => bidView(db, b)),
+    };
+  }
+
+  if (method === "GET" && rawPath === "/provider/courses") {
+    const pid = requireProvider(db);
+    const list = db.courses
+      .filter((c) => c.providerId === pid)
+      .map((c) => ({
+        id: c.id, title: c.title, description: c.description, profession: c.profession,
+        format: c.format, points: c.points, fee: c.fee, schedule: c.schedule,
+        seats: c.seats, status: c.status,
+        enrolments: db.enrollments.filter((e) => e.courseId === c.id).length,
+      }));
+    return { courses: list };
+  }
+
+  if (method === "POST" && rawPath === "/provider/courses") {
+    const pid = requireProvider(db);
+    const c: RawCourse = {
+      id: uid("pc_"), providerId: pid, title: b.title, description: b.description,
+      profession: b.profession, format: b.format, points: Number(b.points),
+      rating: 0, reviewsCount: 0, schedule: b.schedule, fee: b.fee,
+      seats: Number(b.seats), verified: false, status: "PENDING",
+    };
+    db.courses.push(c);
+    save(db);
+    return { id: c.id };
+  }
+
+  if (method === "PATCH" && /^\/provider\/courses\/[^/]+$/.test(rawPath)) {
+    const pid = requireProvider(db);
+    const id = rawPath.split("/")[3];
+    const c = db.courses.find((x) => x.id === id && x.providerId === pid);
+    if (!c) throw { status: 404, error: "Course not found" };
+    for (const k of ["title", "description", "profession", "format", "schedule", "fee"] as const) {
+      if (b[k] !== undefined) (c as any)[k] = b[k];
+    }
+    if (b.points !== undefined) c.points = Number(b.points);
+    if (b.seats !== undefined) c.seats = Number(b.seats);
+    save(db);
+    return { ok: true };
+  }
+
+  if (method === "DELETE" && /^\/provider\/courses\/[^/]+$/.test(rawPath)) {
+    const pid = requireProvider(db);
+    const id = rawPath.split("/")[3];
+    if (!db.courses.some((x) => x.id === id && x.providerId === pid)) throw { status: 404, error: "Course not found" };
+    db.enrollments = db.enrollments.filter((e) => e.courseId !== id);
+    db.courses = db.courses.filter((x) => x.id !== id);
+    save(db);
+    return { ok: true };
+  }
+
+  if (method === "GET" && rawPath === "/provider/tenders") {
+    const pid = requireProvider(db);
+    const list = db.tenders
+      .filter((t) => t.status === "OPEN")
+      .sort((a, b2) => +new Date(a.deadline) - +new Date(b2.deadline))
+      .map((t) => {
+        const mine = db.bids.find((x) => x.tenderId === t.id && x.providerId === pid);
+        return {
+          ...tenderView(db, t),
+          bidCount: db.bids.filter((x) => x.tenderId === t.id).length,
+          myBidStatus: mine?.status ?? null,
+        };
+      });
+    return { tenders: list };
+  }
+
+  if (method === "GET" && /^\/provider\/tenders\/[^/]+$/.test(rawPath)) {
+    const pid = requireProvider(db);
+    const id = rawPath.split("/")[3];
+    const t = db.tenders.find((x) => x.id === id);
+    if (!t) throw { status: 404, error: "Tender not found" };
+    const mine = db.bids.find((x) => x.tenderId === id && x.providerId === pid);
+    return { tender: tenderView(db, t), myBid: mine ? bidView(db, mine) : null };
+  }
+
+  if (method === "POST" && /^\/provider\/tenders\/[^/]+\/bids$/.test(rawPath)) {
+    const pid = requireProvider(db);
+    const id = rawPath.split("/")[3];
+    const t = db.tenders.find((x) => x.id === id);
+    if (!t || t.status !== "OPEN") throw { status: 404, error: "Tender not open" };
+    const status = b.submit === false ? "DRAFT" : "SUBMITTED";
+    let bid = db.bids.find((x) => x.tenderId === id && x.providerId === pid);
+    if (bid) {
+      bid.amount = b.amount; bid.proposal = b.proposal;
+      bid.docFileName = b.docFileName ?? null; bid.status = status;
+    } else {
+      bid = { id: uid("bd_"), tenderId: id, providerId: pid, amount: b.amount, proposal: b.proposal, docFileName: b.docFileName ?? null, status, createdAt: new Date().toISOString() };
+      db.bids.push(bid);
+    }
+    save(db);
+    return { id: bid.id, status: bid.status };
+  }
+
+  if (method === "GET" && rawPath === "/provider/bids") {
+    const pid = requireProvider(db);
+    const list = db.bids
+      .filter((b2) => b2.providerId === pid)
+      .sort((a, b2) => +new Date(b2.createdAt) - +new Date(a.createdAt))
+      .map((b2) => bidView(db, b2));
+    return { bids: list };
+  }
+
+  if (method === "DELETE" && /^\/provider\/bids\/[^/]+$/.test(rawPath)) {
+    const pid = requireProvider(db);
+    const id = rawPath.split("/")[3];
+    if (!db.bids.some((x) => x.id === id && x.providerId === pid)) throw { status: 404, error: "Bid not found" };
+    db.bids = db.bids.filter((x) => x.id !== id);
     save(db);
     return { ok: true };
   }
