@@ -25,6 +25,13 @@ import ProviderCourses from "./pages/provider/ProviderCourses";
 import ProviderTenders from "./pages/provider/ProviderTenders";
 import ProviderTenderDetail from "./pages/provider/ProviderTenderDetail";
 import ProviderBids from "./pages/provider/ProviderBids";
+import { OrgLayout } from "./components/OrgLayout";
+import OrgHome from "./pages/org/OrgHome";
+import OrgStaff from "./pages/org/OrgStaff";
+import OrgBrowse from "./pages/org/OrgBrowse";
+import OrgTenders from "./pages/org/OrgTenders";
+import OrgTenderDetail from "./pages/org/OrgTenderDetail";
+import OrgReports from "./pages/org/OrgReports";
 import type { ReactNode } from "react";
 
 function Protected({ children }: { children: ReactNode }) {
@@ -33,6 +40,7 @@ function Protected({ children }: { children: ReactNode }) {
   if (!user) return <Navigate to="/signin" replace />;
   if (user.role === "ADMIN") return <Navigate to="/admin" replace />;
   if (user.role === "PROVIDER") return <Navigate to="/provider" replace />;
+  if (user.role === "ORG") return <Navigate to="/org" replace />;
   if (!user.onboarded) return <Navigate to="/onboard" replace />;
   return <>{children}</>;
 }
@@ -50,6 +58,14 @@ function ProviderProtected({ children }: { children: ReactNode }) {
   if (loading) return <FullScreenLoader />;
   if (!user) return <Navigate to="/signin" replace />;
   if (user.role !== "PROVIDER") return <Navigate to="/app" replace />;
+  return <>{children}</>;
+}
+
+function OrgProtected({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <FullScreenLoader />;
+  if (!user) return <Navigate to="/signin" replace />;
+  if (user.role !== "ORG") return <Navigate to="/app" replace />;
   return <>{children}</>;
 }
 
@@ -121,6 +137,22 @@ export default function App() {
         <Route path="tenders" element={<ProviderTenders />} />
         <Route path="tenders/:id" element={<ProviderTenderDetail />} />
         <Route path="bids" element={<ProviderBids />} />
+      </Route>
+
+      <Route
+        path="/org"
+        element={
+          <OrgProtected>
+            <OrgLayout />
+          </OrgProtected>
+        }
+      >
+        <Route index element={<OrgHome />} />
+        <Route path="staff" element={<OrgStaff />} />
+        <Route path="browse" element={<OrgBrowse />} />
+        <Route path="tenders" element={<OrgTenders />} />
+        <Route path="tenders/:id" element={<OrgTenderDetail />} />
+        <Route path="reports" element={<OrgReports />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -23,7 +23,7 @@ import type {
 } from "./types";
 
 // Bump when the seed shape changes so returning visitors get fresh demo data.
-const LS_KEY = "cs_static_db_v4";
+const LS_KEY = "cs_static_db_v5";
 
 interface StoredUser extends User {
   password: string;
@@ -177,6 +177,21 @@ function seed(): DB {
       providerId: "p4",
       createdAt: iso("2025-10-01"),
     },
+    {
+      id: "u_org",
+      email: "org@example.com",
+      password: "password123",
+      name: "National Water & Sewerage Corporation",
+      role: "ORG",
+      profession: null,
+      membershipNo: null,
+      professionalBody: null,
+      jobTitle: "People & Culture",
+      organisation: null,
+      onboarded: true,
+      organizationId: "org_nwsc",
+      createdAt: iso("2025-10-01"),
+    },
   ];
 
   const cycles: Cycle[] = [
@@ -242,6 +257,8 @@ function seed(): DB {
   const bids: DbBid[] = [
     { id: "bd1", tenderId: "tn2", providerId: "p4", amount: "UGX 20,500,000", proposal: "We propose a tailored two-day programme combining IFRS 2026 updates with hands-on controls case studies drawn from banking. Includes pre-reading and a post-course assessment.", docFileName: "brandhouse-ifrs-proposal.pdf", status: "SUBMITTED", createdAt: iso("2026-04-10") },
     { id: "bd2", tenderId: "tn1", providerId: "p4", amount: "UGX 44,000,000", proposal: "Draft outline — leadership tracks by seniority with coaching pods.", docFileName: null, status: "DRAFT", createdAt: iso("2026-04-12") },
+    { id: "bd3", tenderId: "tn1", providerId: "p1", amount: "UGX 46,500,000", proposal: "A six-month blended leadership programme with residential intensives, 360° assessments, and executive coaching pods of six. Delivered by our senior faculty with public-sector experience.", docFileName: "makerere-leadership-proposal.pdf", status: "SUBMITTED", createdAt: iso("2026-04-14") },
+    { id: "bd4", tenderId: "tn1", providerId: "p5", amount: "UGX 41,200,000", proposal: "Change-focused leadership track built around your regional structure, with a strong emphasis on public-sector reform case studies and on-the-job application projects.", docFileName: "ssembatya-leadership-proposal.pdf", status: "SUBMITTED", createdAt: iso("2026-04-15") },
   ];
 
   return {
@@ -326,6 +343,14 @@ function requireProvider(db: DB): string {
   if (u.role !== "PROVIDER" || !u.providerId) throw { status: 403, error: "Provider access required" };
   return u.providerId;
 }
+
+function requireOrg(db: DB): string {
+  const u = requireUser(db);
+  if (u.role !== "ORG" || !u.organizationId) throw { status: 403, error: "Organization access required" };
+  return u.organizationId;
+}
+
+const VISIBLE_BID = ["SUBMITTED", "SHORTLISTED", "ACCEPTED", "REJECTED"];
 
 function orgLite(db: DB, id: string) {
   const o = db.organizations.find((x) => x.id === id);
@@ -1033,6 +1058,171 @@ export async function handle(method: string, path: string, body: unknown): Promi
     db.bids = db.bids.filter((x) => x.id !== id);
     save(db);
     return { ok: true };
+  }
+
+  // --- Organization ---
+  if (method === "GET" && rawPath === "/organization/home") {
+    const oid = requireOrg(db);
+    const org = db.organizations.find((o) => o.id === oid) ?? null;
+    const myTenders = db.tenders.filter((t) => t.organizationId === oid);
+    const tenderIds = myTenders.map((t) => t.id);
+    const received = db.bids.filter((b) => tenderIds.includes(b.tenderId) && VISIBLE_BID.includes(b.status));
+    return {
+      organization: org,
+      stats: {
+        staff: db.staff.filter((s) => s.organizationId === oid).length,
+        tenders: myTenders.length,
+        openTenders: myTenders.filter((t) => t.status === "OPEN").length,
+        awarded: myTenders.filter((t) => t.status === "AWARDED").length,
+        receivedBids: received.length,
+      },
+    };
+  }
+
+  if (method === "GET" && rawPath === "/organization/staff") {
+    const oid = requireOrg(db);
+    return { staff: db.staff.filter((s) => s.organizationId === oid).sort((a, b2) => a.name.localeCompare(b2.name)) };
+  }
+
+  if (method === "POST" && rawPath === "/organization/staff") {
+    const oid = requireOrg(db);
+    const s: Staff = { id: uid("st_"), organizationId: oid, name: b.name, email: b.email ?? null, jobTitle: b.jobTitle ?? null, profession: b.profession ?? null, membershipNo: b.membershipNo ?? null, createdAt: new Date().toISOString() };
+    db.staff.push(s);
+    save(db);
+    return { id: s.id };
+  }
+
+  if (method === "PATCH" && /^\/organization\/staff\/[^/]+$/.test(rawPath)) {
+    const oid = requireOrg(db);
+    const id = rawPath.split("/")[3];
+    const s = db.staff.find((x) => x.id === id && x.organizationId === oid);
+    if (!s) throw { status: 404, error: "Staff member not found" };
+    for (const k of ["name", "email", "jobTitle", "profession", "membershipNo"] as const) {
+      if (b[k] !== undefined) (s as any)[k] = b[k];
+    }
+    save(db);
+    return { ok: true };
+  }
+
+  if (method === "DELETE" && /^\/organization\/staff\/[^/]+$/.test(rawPath)) {
+    const oid = requireOrg(db);
+    const id = rawPath.split("/")[3];
+    if (!db.staff.some((x) => x.id === id && x.organizationId === oid)) throw { status: 404, error: "Staff member not found" };
+    db.staff = db.staff.filter((x) => x.id !== id);
+    save(db);
+    return { ok: true };
+  }
+
+  if (method === "GET" && rawPath === "/organization/tenders") {
+    const oid = requireOrg(db);
+    const list = db.tenders
+      .filter((t) => t.organizationId === oid)
+      .sort((a, b2) => a.id < b2.id ? 1 : -1)
+      .map((t) => ({
+        id: t.id, title: t.title, category: t.category, deliveryMode: t.deliveryMode,
+        budget: t.budget, seats: t.seats, deadline: t.deadline, status: t.status,
+        bidCount: db.bids.filter((x) => x.tenderId === t.id && VISIBLE_BID.includes(x.status)).length,
+      }));
+    return { tenders: list };
+  }
+
+  if (method === "POST" && rawPath === "/organization/tenders") {
+    const oid = requireOrg(db);
+    const t: DbTender = {
+      id: uid("tn_"), organizationId: oid, title: b.title, description: b.description,
+      category: b.category, deliveryMode: b.deliveryMode ?? "Flexible", budget: b.budget,
+      seats: Number(b.seats), deadline: iso(b.deadline), status: "OPEN",
+    };
+    db.tenders.push(t);
+    save(db);
+    return { id: t.id };
+  }
+
+  if (method === "GET" && /^\/organization\/tenders\/[^/]+$/.test(rawPath)) {
+    const oid = requireOrg(db);
+    const id = rawPath.split("/")[3];
+    const t = db.tenders.find((x) => x.id === id && x.organizationId === oid);
+    if (!t) throw { status: 404, error: "Tender not found" };
+    const bids = db.bids
+      .filter((x) => x.tenderId === id && VISIBLE_BID.includes(x.status))
+      .sort((a, b2) => +new Date(a.createdAt) - +new Date(b2.createdAt))
+      .map((x) => {
+        const p = db.providers.find((pp) => pp.id === x.providerId);
+        return {
+          id: x.id, amount: x.amount, proposal: x.proposal, docFileName: x.docFileName,
+          status: x.status, createdAt: x.createdAt,
+          provider: { id: x.providerId, name: p?.name ?? "Provider", initials: p?.initials ?? "?", type: p?.type ?? "", rating: p?.rating ?? 0, verified: p?.verified ?? false },
+        };
+      });
+    return {
+      tender: { id: t.id, title: t.title, description: t.description, category: t.category, deliveryMode: t.deliveryMode, budget: t.budget, seats: t.seats, deadline: t.deadline, status: t.status },
+      bids,
+    };
+  }
+
+  if (method === "PATCH" && /^\/organization\/tenders\/[^/]+$/.test(rawPath)) {
+    const oid = requireOrg(db);
+    const id = rawPath.split("/")[3];
+    const t = db.tenders.find((x) => x.id === id && x.organizationId === oid);
+    if (!t) throw { status: 404, error: "Tender not found" };
+    for (const k of ["title", "description", "category", "deliveryMode", "budget", "status"] as const) {
+      if (b[k] !== undefined) (t as any)[k] = b[k];
+    }
+    if (b.seats !== undefined) t.seats = Number(b.seats);
+    if (b.deadline !== undefined) t.deadline = iso(b.deadline);
+    save(db);
+    return { ok: true };
+  }
+
+  if (method === "DELETE" && /^\/organization\/tenders\/[^/]+$/.test(rawPath)) {
+    const oid = requireOrg(db);
+    const id = rawPath.split("/")[3];
+    if (!db.tenders.some((x) => x.id === id && x.organizationId === oid)) throw { status: 404, error: "Tender not found" };
+    db.bids = db.bids.filter((x) => x.tenderId !== id);
+    db.tenders = db.tenders.filter((x) => x.id !== id);
+    save(db);
+    return { ok: true };
+  }
+
+  if (method === "PATCH" && /^\/organization\/bids\/[^/]+$/.test(rawPath)) {
+    const oid = requireOrg(db);
+    const id = rawPath.split("/")[3];
+    const bid = db.bids.find((x) => x.id === id);
+    const tender = bid ? db.tenders.find((t) => t.id === bid.tenderId) : null;
+    if (!bid || !tender || tender.organizationId !== oid) throw { status: 404, error: "Bid not found" };
+    bid.status = b.status;
+    if (b.status === "ACCEPTED") {
+      tender.status = "AWARDED";
+      for (const other of db.bids) {
+        if (other.tenderId === tender.id && other.id !== bid.id && (other.status === "SUBMITTED" || other.status === "SHORTLISTED")) {
+          other.status = "REJECTED";
+        }
+      }
+    }
+    save(db);
+    return { ok: true };
+  }
+
+  if (method === "GET" && rawPath === "/organization/reports") {
+    const oid = requireOrg(db);
+    const staff = db.staff.filter((s) => s.organizationId === oid);
+    const myTenders = db.tenders.filter((t) => t.organizationId === oid);
+    const tenderIds = myTenders.map((t) => t.id);
+    const byProfession: Record<string, number> = {};
+    for (const s of staff) {
+      const key = s.profession ?? "Other";
+      byProfession[key] = (byProfession[key] ?? 0) + 1;
+    }
+    return {
+      staffTotal: staff.length,
+      byProfession,
+      tendersByStatus: {
+        OPEN: myTenders.filter((t) => t.status === "OPEN").length,
+        AWARDED: myTenders.filter((t) => t.status === "AWARDED").length,
+        CLOSED: myTenders.filter((t) => t.status === "CLOSED").length,
+      },
+      bidsReceived: db.bids.filter((b2) => tenderIds.includes(b2.tenderId) && VISIBLE_BID.includes(b2.status)).length,
+    };
   }
 
   throw { status: 404, error: "Not found" };

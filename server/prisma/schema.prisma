@@ -26,6 +26,8 @@ model User {
   onboarded        Boolean  @default(false)
   // For PROVIDER accounts: the provider profile they manage.
   providerId       String?
+  // For ORG accounts: the organization they manage.
+  organizationId   String?
   createdAt        DateTime @default(now())
 
   cycles      Cycle[]

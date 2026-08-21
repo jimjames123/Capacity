@@ -513,8 +513,44 @@ async function main() {
       status: "DRAFT",
     },
   });
+  // Submitted bids on NWSC's leadership tender (t1), so the org has bids to review.
+  await prisma.bid.create({
+    data: {
+      tenderId: t1.id,
+      providerId: makerere.id,
+      amount: "UGX 46,500,000",
+      proposal:
+        "A six-month blended leadership programme with residential intensives, 360° assessments, and executive coaching pods of six. Delivered by our senior faculty with public-sector experience.",
+      docFileName: "makerere-leadership-proposal.pdf",
+      status: "SUBMITTED",
+    },
+  });
+  await prisma.bid.create({
+    data: {
+      tenderId: t1.id,
+      providerId: think.id,
+      amount: "UGX 41,200,000",
+      proposal:
+        "Change-focused leadership track built around your regional structure, with a strong emphasis on public-sector reform case studies and on-the-job application projects.",
+      docFileName: "ssembatya-leadership-proposal.pdf",
+      status: "SUBMITTED",
+    },
+  });
 
-  console.log("Seed complete: member aisha@example.com, provider provider@example.com, registrar registrar@example.com (all password123)");
+  // ---- Organization login (National Water & Sewerage Corporation) ----------
+  await prisma.user.create({
+    data: {
+      name: "National Water & Sewerage Corporation",
+      email: "org@example.com",
+      passwordHash: await bcrypt.hash("password123", 10),
+      role: "ORG",
+      organizationId: nwsc.id,
+      jobTitle: "People & Culture",
+      onboarded: true,
+    },
+  });
+
+  console.log("Seed complete (all password123): member aisha@example.com · provider provider@example.com · org org@example.com · registrar registrar@example.com");
 }
 
 main()

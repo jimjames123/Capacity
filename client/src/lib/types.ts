@@ -12,6 +12,7 @@ export interface User {
   organisation: string | null;
   onboarded: boolean;
   providerId?: string | null;
+  organizationId?: string | null;
   createdAt: string;
 }
 
@@ -83,6 +84,62 @@ export interface Bid {
     category: string;
     organizationName: string;
   };
+}
+
+export interface OrgStats {
+  staff: number;
+  tenders: number;
+  openTenders: number;
+  awarded: number;
+  receivedBids: number;
+}
+
+export interface OrgTenderRow {
+  id: string;
+  title: string;
+  category: string;
+  deliveryMode: string;
+  budget: string;
+  seats: number;
+  deadline: string;
+  status: string;
+  bidCount: number;
+}
+
+export interface OrgTenderDetail {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  deliveryMode: string;
+  budget: string;
+  seats: number;
+  deadline: string;
+  status: string;
+}
+
+export interface ReceivedBid {
+  id: string;
+  amount: string;
+  proposal: string;
+  docFileName: string | null;
+  status: BidStatus;
+  createdAt: string;
+  provider: {
+    id: string;
+    name: string;
+    initials: string;
+    type: string;
+    rating: number;
+    verified: boolean;
+  };
+}
+
+export interface OrgReport {
+  staffTotal: number;
+  byProfession: Record<string, number>;
+  tendersByStatus: { OPEN: number; AWARDED: number; CLOSED: number };
+  bidsReceived: number;
 }
 
 export interface ProviderProfile {
