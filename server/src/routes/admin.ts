@@ -413,3 +413,68 @@ adminRouter.delete("/staff/:id", async (req, res) => {
   await prisma.staff.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
 });
+
+// ---------------------------------------------------------------------------
+// Consultants (course providers / trainers)
+// ---------------------------------------------------------------------------
+
+/** GET /api/admin/consultants — every provider on the platform. */
+adminRouter.get("/consultants", async (_req, res) => {
+  const providers = await prisma.provider.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { courses: true } } },
+  });
+  res.json({
+    consultants: providers.map((p) => ({
+      id: p.id,
+      name: p.name,
+      initials: p.initials,
+      type: p.type,
+      verified: p.verified,
+      rating: p.rating,
+      meta: p.meta,
+      bio: p.bio,
+      courseCount: p._count.courses,
+    })),
+  });
+});
+
+/** GET /api/admin/consultants/:id — provider profile with listed courses. */
+adminRouter.get("/consultants/:id", async (req, res) => {
+  const provider = await prisma.provider.findUnique({
+    where: { id: req.params.id },
+    include: {
+      courses: {
+        orderBy: { createdAt: "asc" },
+        include: { _count: { select: { enrollments: true } } },
+      },
+    },
+  });
+  if (!provider) {
+    res.status(404).json({ error: "Consultant not found" });
+    return;
+  }
+  res.json({
+    consultant: {
+      id: provider.id,
+      name: provider.name,
+      initials: provider.initials,
+      type: provider.type,
+      verified: provider.verified,
+      rating: provider.rating,
+      meta: provider.meta,
+      bio: provider.bio,
+      courses: provider.courses.map((c) => ({
+        id: c.id,
+        title: c.title,
+        profession: c.profession,
+        format: c.format,
+        points: c.points,
+        rating: c.rating,
+        fee: c.fee,
+        schedule: c.schedule,
+        enrollments: c._count.enrollments,
+      })),
+    },
+  });
+});

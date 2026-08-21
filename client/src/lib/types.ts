@@ -137,6 +137,42 @@ export interface Organization {
   staff?: Staff[];
 }
 
+export interface ConsultantRow {
+  id: string;
+  name: string;
+  initials: string;
+  type: string;
+  verified: boolean;
+  rating: number;
+  meta: string | null;
+  bio: string | null;
+  courseCount: number;
+}
+
+export interface ConsultantCourse {
+  id: string;
+  title: string;
+  profession: string;
+  format: CourseFormat;
+  points: number;
+  rating: number;
+  fee: string;
+  schedule: string;
+  enrollments: number;
+}
+
+export interface ConsultantDetail {
+  id: string;
+  name: string;
+  initials: string;
+  type: string;
+  verified: boolean;
+  rating: number;
+  meta: string | null;
+  bio: string | null;
+  courses: ConsultantCourse[];
+}
+
 export interface AdminStats {
   members: number;
   providers: number;

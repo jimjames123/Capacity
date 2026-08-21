@@ -17,6 +17,8 @@ import AdminMembers from "./pages/admin/AdminMembers";
 import AdminMemberDetail from "./pages/admin/AdminMemberDetail";
 import AdminOrganizations from "./pages/admin/AdminOrganizations";
 import AdminOrganizationDetail from "./pages/admin/AdminOrganizationDetail";
+import AdminConsultants from "./pages/admin/AdminConsultants";
+import AdminConsultantDetail from "./pages/admin/AdminConsultantDetail";
 import type { ReactNode } from "react";
 
 function Protected({ children }: { children: ReactNode }) {
@@ -87,6 +89,8 @@ export default function App() {
         <Route path="members/:id" element={<AdminMemberDetail />} />
         <Route path="organizations" element={<AdminOrganizations />} />
         <Route path="organizations/:id" element={<AdminOrganizationDetail />} />
+        <Route path="consultants" element={<AdminConsultants />} />
+        <Route path="consultants/:id" element={<AdminConsultantDetail />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

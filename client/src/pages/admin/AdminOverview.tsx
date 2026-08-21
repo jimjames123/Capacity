@@ -73,7 +73,7 @@ export default function AdminOverview() {
         <Stat label="Needs proof" value={stats.needsProof} tone="rust" />
         <Stat label="Rejected" value={stats.rejected} tone="muted" />
         <Stat label="Members" value={stats.members} tone="muted" />
-        <Stat label="Providers" value={stats.providers} tone="muted" />
+        <Stat label="Consultants" value={stats.providers} tone="muted" to="/admin/consultants" />
         <Stat label="Courses" value={stats.courses} tone="muted" />
         <Stat label="Certificates" value={stats.certificatesIssued} tone="green" />
       </div>
@@ -85,10 +85,12 @@ function Stat({
   label,
   value,
   tone,
+  to,
 }: {
   label: string;
   value: number;
   tone: "green" | "amber" | "rust" | "muted";
+  to?: string;
 }) {
   const accent = {
     green: "text-green",
@@ -96,10 +98,18 @@ function Stat({
     rust: "text-rust",
     muted: "text-ink",
   }[tone];
-  return (
-    <div className="card p-5">
+  const body = (
+    <>
       <div className="label-caps">{label}</div>
       <div className={`mt-2 font-serif text-3xl font-bold ${accent}`}>{value}</div>
-    </div>
+    </>
   );
+  if (to) {
+    return (
+      <Link to={to} className="card block p-5 transition hover:-translate-y-0.5 hover:shadow-lift">
+        {body}
+      </Link>
+    );
+  }
+  return <div className="card p-5">{body}</div>;
 }

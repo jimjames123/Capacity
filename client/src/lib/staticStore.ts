@@ -709,6 +709,41 @@ export async function handle(method: string, path: string, body: unknown): Promi
     return { ok: true };
   }
 
+  // --- Admin: consultants (providers) ---
+  if (method === "GET" && rawPath === "/admin/consultants") {
+    requireAdmin(db);
+    const list = providers
+      .slice()
+      .sort((a, b2) => a.name.localeCompare(b2.name))
+      .map((p) => ({
+        id: p.id, name: p.name, initials: p.initials, type: p.type,
+        verified: p.verified, rating: p.rating, meta: p.meta, bio: p.bio,
+        courseCount: courses.filter((c) => c.provider.id === p.id).length,
+      }));
+    return { consultants: list };
+  }
+
+  if (method === "GET" && /^\/admin\/consultants\/[^/]+$/.test(rawPath)) {
+    requireAdmin(db);
+    const id = rawPath.split("/")[3];
+    const p = providers.find((x) => x.id === id);
+    if (!p) throw { status: 404, error: "Consultant not found" };
+    const provCourses = courses
+      .filter((c) => c.provider.id === id)
+      .map((c) => ({
+        id: c.id, title: c.title, profession: c.profession, format: c.format,
+        points: c.points, rating: c.rating, fee: c.fee, schedule: c.schedule,
+        enrollments: db.enrollments.filter((e) => e.courseId === c.id).length,
+      }));
+    return {
+      consultant: {
+        id: p.id, name: p.name, initials: p.initials, type: p.type,
+        verified: p.verified, rating: p.rating, meta: p.meta, bio: p.bio,
+        courses: provCourses,
+      },
+    };
+  }
+
   throw { status: 404, error: "Not found" };
 }
 
