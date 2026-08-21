@@ -22,7 +22,7 @@ import type {
 } from "./types";
 
 // Bump when the seed shape changes so returning visitors get fresh demo data.
-const LS_KEY = "cs_static_db_v2";
+const LS_KEY = "cs_static_db_v3";
 
 interface StoredUser extends User {
   password: string;
@@ -35,12 +35,17 @@ interface DB {
   enrollments: { id: string; userId: string; courseId: string; status: string; createdAt: string }[];
   organizations: Omit<Organization, "staffCount" | "staff">[];
   staff: Staff[];
+  providers: Provider[];
+  courses: RawCourse[];
 }
 
 // ---- Static catalogue (providers, courses, reviews) ------------------------
-// These never change, so they live as constants rather than in localStorage.
+// Providers and courses are seeded into the DB so the admin can manage them;
+// reviews stay constant (they aren't edited from the admin console).
 
-const providers: Provider[] = [
+type RawCourse = Omit<Course, "provider"> & { providerId: string };
+
+const PROVIDER_SEED: Provider[] = [
   { id: "p1", name: "Makerere Executive Institute", initials: "ME", type: "Institution", verified: true, rating: 4.9, meta: "Kampala · 22 courses", bio: "The executive education arm of Makerere University, delivering accredited professional programmes across disciplines since 2009." },
   { id: "p2", name: "Deloitte Uganda Academy", initials: "DA", type: "Training company", verified: true, rating: 4.8, meta: "Kampala · 15 courses", bio: "Professional training from Deloitte's East Africa practice, covering finance, risk, and governance." },
   { id: "p3", name: "Uganda Institute of Applied Professionals", initials: "UI", type: "Institution", verified: true, rating: 4.7, meta: "Jinja · 9 courses", bio: "Hands-on technical and engineering CPD delivered by practising professionals." },
@@ -67,7 +72,7 @@ const reviewsByCourse: Record<string, Review[]> = {
   ],
 };
 
-const courses: Course[] = [
+const COURSE_SEED: RawCourse[] = [
   mkCourse("c1", "p3", "Structural Integrity & Safety Auditing", "A practical, three-day programme on inspecting and certifying structural safety for buildings and civil works, aligned to Ugandan engineering practice standards. Includes a supervised field audit.", "Engineering", "IN_PERSON", 4, 4.8, 3, "Starts 4 Mar · 3 days", "UGX 620,000", 12),
   mkCourse("c2", "p2", "IFRS Update & Practical Application 2026", "Stay current with the latest International Financial Reporting Standards. This course walks through the 2026 amendments with worked examples drawn from East African filings.", "Finance", "HYBRID", 3, 4.9, 4, "Starts 18 Mar · 2 days", "UGX 480,000", 25),
   mkCourse("c3", "p1", "Strategic Workforce Planning", "Build the analytical toolkit to forecast talent needs, model scenarios, and align people strategy with organisational goals. Designed for senior HR practitioners.", "HR", "ONLINE", 3, 4.7, 5, "Self-paced · 6 weeks", "UGX 350,000", 60),
@@ -82,13 +87,19 @@ function mkCourse(
   id: string, providerId: string, title: string, description: string,
   profession: string, format: Course["format"], points: number, rating: number,
   reviewsCount: number, schedule: string, fee: string, seats: number,
-): Course {
-  const provider = providers.find((p) => p.id === providerId)!;
-  return { id, title, description, profession, format, points, rating, reviewsCount, schedule, fee, seats, verified: true, provider };
+): RawCourse {
+  return { id, providerId, title, description, profession, format, points, rating, reviewsCount, schedule, fee, seats, verified: true };
 }
 
 function iso(d: string): string {
   return new Date(d).toISOString();
+}
+
+/** Attaches the live provider record to a stored course. */
+function resolveCourse(db: DB, raw: RawCourse): Course {
+  const { providerId, ...rest } = raw;
+  const provider = db.providers.find((p) => p.id === providerId) ?? PROVIDER_SEED[0];
+  return { ...rest, provider };
 }
 
 // ---- Seed ------------------------------------------------------------------
@@ -177,6 +188,8 @@ function seed(): DB {
     enrollments: [{ id: "en1", userId: aishaId, courseId: "c3", status: "ENROLLED", createdAt: iso("2026-02-01") }],
     organizations,
     staff,
+    providers: PROVIDER_SEED.map((p) => ({ ...p })),
+    courses: COURSE_SEED.map((c) => ({ ...c })),
   };
 }
 
@@ -349,7 +362,7 @@ export async function handle(method: string, path: string, body: unknown): Promi
   if (method === "GET" && rawPath === "/courses") {
     const prof = query.get("profession");
     const fmt = query.get("format");
-    let list = courses.slice();
+    let list = db.courses.map((c) => resolveCourse(db, c));
     if (prof && prof !== "All") list = list.filter((c) => c.profession === prof);
     if (fmt && fmt !== "All") list = list.filter((c) => c.format === fmt);
     list.sort((a, b2) => b2.rating - a.rating);
@@ -358,15 +371,15 @@ export async function handle(method: string, path: string, body: unknown): Promi
 
   if (method === "GET" && rawPath.startsWith("/courses/") && !rawPath.includes("enroll") && !rawPath.includes("me/")) {
     const id = rawPath.split("/")[2];
-    const course = courses.find((c) => c.id === id);
-    if (!course) throw { status: 404, error: "Course not found" };
-    return { course: { ...course, reviews: reviewsByCourse[id] ?? [] } };
+    const raw = db.courses.find((c) => c.id === id);
+    if (!raw) throw { status: 404, error: "Course not found" };
+    return { course: { ...resolveCourse(db, raw), reviews: reviewsByCourse[id] ?? [] } };
   }
 
   if (method === "POST" && /^\/courses\/[^/]+\/enroll$/.test(rawPath)) {
     const user = requireUser(db);
     const courseId = rawPath.split("/")[2];
-    if (!courses.find((c) => c.id === courseId)) throw { status: 404, error: "Course not found" };
+    if (!db.courses.find((c) => c.id === courseId)) throw { status: 404, error: "Course not found" };
     const existing = db.enrollments.find((e) => e.userId === user.id && e.courseId === courseId);
     if (existing) return { enrollment: existing, alreadyEnrolled: true };
     const enrollment = { id: uid("en_"), userId: user.id, courseId, status: "ENROLLED", createdAt: new Date().toISOString() };
@@ -402,8 +415,8 @@ export async function handle(method: string, path: string, body: unknown): Promi
     return {
       stats: {
         members: db.users.filter((u) => u.role === "MEMBER").length,
-        providers: providers.length,
-        courses: courses.length,
+        providers: db.providers.length,
+        courses: db.courses.length,
         certificatesIssued: db.cycles.filter((c) => (c as unknown as { certRef: string | null }).certRef).length,
         awaitingReview: byStatus.PENDING,
         needsProof: byStatus.NEEDS_PROOF,
@@ -506,8 +519,8 @@ export async function handle(method: string, path: string, body: unknown): Promi
     return {
       stats: {
         members: db.users.filter((u) => u.role === "MEMBER").length,
-        providers: providers.length,
-        courses: courses.length,
+        providers: db.providers.length,
+        courses: db.courses.length,
         certificatesIssued: db.cycles.filter((c) => c.certRef).length,
         awaitingReview: counts.PENDING,
         needsProof: counts.NEEDS_PROOF,
@@ -712,13 +725,13 @@ export async function handle(method: string, path: string, body: unknown): Promi
   // --- Admin: consultants (providers) ---
   if (method === "GET" && rawPath === "/admin/consultants") {
     requireAdmin(db);
-    const list = providers
+    const list = db.providers
       .slice()
       .sort((a, b2) => a.name.localeCompare(b2.name))
       .map((p) => ({
         id: p.id, name: p.name, initials: p.initials, type: p.type,
         verified: p.verified, rating: p.rating, meta: p.meta, bio: p.bio,
-        courseCount: courses.filter((c) => c.provider.id === p.id).length,
+        courseCount: db.courses.filter((c) => c.providerId === p.id).length,
       }));
     return { consultants: list };
   }
@@ -726,10 +739,10 @@ export async function handle(method: string, path: string, body: unknown): Promi
   if (method === "GET" && /^\/admin\/consultants\/[^/]+$/.test(rawPath)) {
     requireAdmin(db);
     const id = rawPath.split("/")[3];
-    const p = providers.find((x) => x.id === id);
+    const p = db.providers.find((x) => x.id === id);
     if (!p) throw { status: 404, error: "Consultant not found" };
-    const provCourses = courses
-      .filter((c) => c.provider.id === id)
+    const provCourses = db.courses
+      .filter((c) => c.providerId === id)
       .map((c) => ({
         id: c.id, title: c.title, profession: c.profession, format: c.format,
         points: c.points, rating: c.rating, fee: c.fee, schedule: c.schedule,
@@ -742,6 +755,48 @@ export async function handle(method: string, path: string, body: unknown): Promi
         courses: provCourses,
       },
     };
+  }
+
+  if (method === "POST" && rawPath === "/admin/consultants") {
+    requireAdmin(db);
+    const name: string = b.name ?? "";
+    const initials = (b.initials || name.split(" ").slice(0, 2).map((w: string) => w[0]).join("") || "?").toUpperCase();
+    const p: Provider = {
+      id: uid("prov_"), name, initials,
+      type: b.type ?? "Training company",
+      verified: b.verified ?? false,
+      rating: b.rating !== undefined ? Number(b.rating) : 0,
+      meta: b.meta ?? null, bio: b.bio ?? null,
+    };
+    db.providers.push(p);
+    save(db);
+    return { id: p.id };
+  }
+
+  if (method === "PATCH" && /^\/admin\/consultants\/[^/]+$/.test(rawPath)) {
+    requireAdmin(db);
+    const id = rawPath.split("/")[3];
+    const p = db.providers.find((x) => x.id === id);
+    if (!p) throw { status: 404, error: "Consultant not found" };
+    for (const k of ["name", "initials", "type", "meta", "bio"] as const) {
+      if (b[k] !== undefined) (p as any)[k] = b[k];
+    }
+    if (b.verified !== undefined) p.verified = !!b.verified;
+    if (b.rating !== undefined) p.rating = Number(b.rating);
+    save(db);
+    return { ok: true };
+  }
+
+  if (method === "DELETE" && /^\/admin\/consultants\/[^/]+$/.test(rawPath)) {
+    requireAdmin(db);
+    const id = rawPath.split("/")[3];
+    if (!db.providers.some((x) => x.id === id)) throw { status: 404, error: "Consultant not found" };
+    const courseIds = db.courses.filter((c) => c.providerId === id).map((c) => c.id);
+    db.enrollments = db.enrollments.filter((e) => !courseIds.includes(e.courseId));
+    db.courses = db.courses.filter((c) => c.providerId !== id);
+    db.providers = db.providers.filter((x) => x.id !== id);
+    save(db);
+    return { ok: true };
   }
 
   throw { status: 404, error: "Not found" };

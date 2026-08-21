@@ -478,3 +478,72 @@ adminRouter.get("/consultants/:id", async (req, res) => {
     },
   });
 });
+
+const consultantSchema = z.object({
+  name: z.string().min(2),
+  initials: z.string().optional(),
+  type: z.string().optional(),
+  verified: z.boolean().optional(),
+  rating: z.number().min(0).max(5).optional(),
+  meta: z.string().optional(),
+  bio: z.string().optional(),
+});
+
+function deriveInitials(name: string): string {
+  return (
+    name
+      .split(" ")
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join("") || "?"
+  ).toUpperCase();
+}
+
+/** POST /api/admin/consultants — register a new provider/consultant. */
+adminRouter.post("/consultants", async (req, res) => {
+  const parsed = consultantSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid consultant details" });
+    return;
+  }
+  const d = parsed.data;
+  const provider = await prisma.provider.create({
+    data: {
+      name: d.name,
+      initials: d.initials || deriveInitials(d.name),
+      type: d.type ?? "Training company",
+      verified: d.verified ?? false,
+      rating: d.rating ?? 0,
+      meta: d.meta ?? null,
+      bio: d.bio ?? null,
+    },
+  });
+  res.status(201).json({ id: provider.id });
+});
+
+/** PATCH /api/admin/consultants/:id — update a provider (incl. verify toggle). */
+adminRouter.patch("/consultants/:id", async (req, res) => {
+  const parsed = consultantSchema.partial().safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid consultant details" });
+    return;
+  }
+  const existing = await prisma.provider.findUnique({ where: { id: req.params.id } });
+  if (!existing) {
+    res.status(404).json({ error: "Consultant not found" });
+    return;
+  }
+  await prisma.provider.update({ where: { id: req.params.id }, data: parsed.data });
+  res.json({ ok: true });
+});
+
+/** DELETE /api/admin/consultants/:id — remove a provider and their courses. */
+adminRouter.delete("/consultants/:id", async (req, res) => {
+  const existing = await prisma.provider.findUnique({ where: { id: req.params.id } });
+  if (!existing) {
+    res.status(404).json({ error: "Consultant not found" });
+    return;
+  }
+  await prisma.provider.delete({ where: { id: req.params.id } });
+  res.json({ ok: true });
+});

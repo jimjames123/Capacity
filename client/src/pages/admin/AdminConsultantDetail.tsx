@@ -1,27 +1,60 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../../lib/api";
 import { Badge, EmptyState, Stars } from "../../components/ui";
+import { ConfirmDialog } from "../../components/Modal";
+import { ConsultantFormModal } from "./AdminConsultants";
 import { FORMAT_META, pointsLabel } from "../../lib/format";
-import type { ConsultantDetail, CourseFormat } from "../../lib/types";
+import type { ConsultantDetail, ConsultantRow, CourseFormat } from "../../lib/types";
 
 export default function AdminConsultantDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [c, setC] = useState<ConsultantDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [delBusy, setDelBusy] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!id) return;
     api
       .get<{ consultant: ConsultantDetail }>(`/admin/consultants/${id}`)
       .then((r) => setC(r.consultant))
       .catch(() => setError("Consultant not found"));
   }, [id]);
+  useEffect(load, [load]);
+
+  async function toggleVerify() {
+    if (!c) return;
+    setC({ ...c, verified: !c.verified });
+    try {
+      await api.patch(`/admin/consultants/${c.id}`, { verified: !c.verified });
+    } catch {
+      load();
+    }
+  }
+
+  async function doDelete() {
+    if (!c) return;
+    setDelBusy(true);
+    try {
+      await api.del(`/admin/consultants/${c.id}`);
+      navigate("/admin/consultants");
+    } catch {
+      setDelBusy(false);
+    }
+  }
 
   if (error) return <EmptyState title={error} />;
   if (!c) return <div className="h-96 animate-pulse rounded-2xl bg-line" />;
 
   const totalEnrolments = c.courses.reduce((s, x) => s + x.enrollments, 0);
+  const asRow: ConsultantRow = {
+    id: c.id, name: c.name, initials: c.initials, type: c.type,
+    verified: c.verified, rating: c.rating, meta: c.meta, bio: c.bio,
+    courseCount: c.courses.length,
+  };
 
   return (
     <div className="space-y-6">
@@ -52,6 +85,27 @@ export default function AdminConsultantDetail() {
               <span>{c.rating.toFixed(1)} average rating</span>
             </div>
             {c.bio && <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">{c.bio}</p>}
+          </div>
+          <div className="flex shrink-0 flex-col gap-2">
+            <button
+              onClick={toggleVerify}
+              className={`btn px-4 py-2 ${
+                c.verified
+                  ? "border border-amber-line bg-amber-soft text-amber hover:bg-[#efe6cf]"
+                  : "bg-teal text-white hover:bg-teal-dark"
+              }`}
+            >
+              {c.verified ? "Unverify" : "Verify provider"}
+            </button>
+            <div className="flex gap-2">
+              <button onClick={() => setEditing(true)} className="btn-ghost flex-1 px-4 py-2">Edit</button>
+              <button
+                onClick={() => setDeleting(true)}
+                className="btn border border-rust-line bg-rust-soft px-4 py-2 text-rust hover:bg-[#f3d9d6]"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
 
@@ -85,6 +139,22 @@ export default function AdminConsultantDetail() {
           </div>
         )}
       </div>
+
+      {editing && (
+        <ConsultantFormModal
+          initial={asRow}
+          onClose={() => setEditing(false)}
+          onSaved={() => { setEditing(false); load(); }}
+        />
+      )}
+      <ConfirmDialog
+        open={deleting}
+        onClose={() => setDeleting(false)}
+        onConfirm={doDelete}
+        busy={delBusy}
+        title="Delete consultant"
+        message={`Delete ${c.name} and their ${c.courses.length} listed course${c.courses.length === 1 ? "" : "s"}? This cannot be undone.`}
+      />
     </div>
   );
 }
