@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, ApiError } from "../../lib/api";
 import { Badge, EmptyState } from "../../components/ui";
@@ -17,6 +17,8 @@ export default function OrgTenders() {
   const [tenders, setTenders] = useState<OrgTenderRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [q, setQ] = useState("");
+  const [statusF, setStatusF] = useState("All");
 
   function load() {
     api
@@ -25,6 +27,15 @@ export default function OrgTenders() {
       .catch(() => setError("Could not load your tenders"));
   }
   useEffect(load, []);
+
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    return (tenders ?? []).filter((t) => {
+      if (statusF !== "All" && t.status !== statusF) return false;
+      if (term && !`${t.title} ${t.category} ${t.deliveryMode}`.toLowerCase().includes(term)) return false;
+      return true;
+    });
+  }, [tenders, q, statusF]);
 
   if (error) return <EmptyState title={error} />;
   if (!tenders) return <div className="h-64 animate-pulse rounded-2xl bg-line" />;
@@ -39,11 +50,22 @@ export default function OrgTenders() {
         <button onClick={() => setCreating(true)} className="btn-primary">+ Post a tender</button>
       </div>
 
+      {tenders.length > 0 && (
+        <div className="card grid gap-3 p-4 sm:grid-cols-[1fr_auto]">
+          <input className="field" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tenders by title, category or delivery…" />
+          <select className="field sm:w-44" value={statusF} onChange={(e) => setStatusF(e.target.value)}>
+            {["All", "OPEN", "AWARDED", "CLOSED"].map((s) => <option key={s} value={s}>{s === "All" ? "All statuses" : s.charAt(0) + s.slice(1).toLowerCase()}</option>)}
+          </select>
+        </div>
+      )}
+
       {tenders.length === 0 ? (
         <EmptyState title="No tenders yet" hint="Post your first tender to invite bids from providers." />
+      ) : filtered.length === 0 ? (
+        <EmptyState title="No tenders match these filters" hint="Try a different status or search term." />
       ) : (
         <div className="space-y-4">
-          {tenders.map((t) => (
+          {filtered.map((t) => (
             <Link key={t.id} to={`/org/tenders/${t.id}`} className="card block p-5 transition hover:-translate-y-0.5 hover:shadow-lift">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">

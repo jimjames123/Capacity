@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../../lib/api";
 import { EmptyState } from "../../components/ui";
 import { Modal, ConfirmDialog } from "../../components/Modal";
@@ -20,11 +20,22 @@ export default function OrgBookings() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<Booking | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [statusF, setStatusF] = useState("All");
 
   function load() {
     api.get<{ bookings: Booking[] }>("/organization/bookings").then((r) => setBookings(r.bookings)).catch(() => setError("Could not load bookings"));
   }
   useEffect(load, []);
+
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    return (bookings ?? []).filter((b) => {
+      if (statusF !== "All" && b.status !== statusF) return false;
+      if (term && !`${b.title} ${b.providerName ?? ""} ${b.category ?? ""}`.toLowerCase().includes(term)) return false;
+      return true;
+    });
+  }, [bookings, q, statusF]);
 
   async function patch(b: Booking, body: Record<string, unknown>) {
     setBusyId(b.id);
@@ -49,11 +60,22 @@ export default function OrgBookings() {
         <button onClick={() => setCreating(true)} className="btn-primary">+ New booking</button>
       </div>
 
+      {bookings.length > 0 && (
+        <div className="card grid gap-3 p-4 sm:grid-cols-[1fr_auto]">
+          <input className="field" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search bookings by training, provider or category…" />
+          <select className="field sm:w-44" value={statusF} onChange={(e) => setStatusF(e.target.value)}>
+            {["All", "SCHEDULED", "COMPLETED", "CANCELLED"].map((s) => <option key={s} value={s}>{s === "All" ? "All statuses" : s.charAt(0) + s.slice(1).toLowerCase()}</option>)}
+          </select>
+        </div>
+      )}
+
       {bookings.length === 0 ? (
         <EmptyState title="No bookings yet" hint="Book a course or record an in-house session." />
+      ) : filtered.length === 0 ? (
+        <EmptyState title="No bookings match these filters" hint="Try a different status or search term." />
       ) : (
         <div className="space-y-3">
-          {bookings.map((b) => (
+          {filtered.map((b) => (
             <div key={b.id} className="card p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">

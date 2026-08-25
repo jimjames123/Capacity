@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../../lib/api";
 import { EmptyState } from "../../components/ui";
 import { Modal, ConfirmDialog } from "../../components/Modal";
@@ -21,6 +21,7 @@ export default function OrgStaff() {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Staff | "new" | null>(null);
   const [deleting, setDeleting] = useState<Staff | null>(null);
+  const [q, setQ] = useState("");
 
   function load() {
     api
@@ -29,6 +30,14 @@ export default function OrgStaff() {
       .catch(() => setError("Could not load staff"));
   }
   useEffect(load, []);
+
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (!term || !staff) return staff ?? [];
+    return staff.filter((s) =>
+      `${s.name} ${s.jobTitle ?? ""} ${s.profession ?? ""} ${s.membershipNo ?? ""} ${s.email ?? ""}`.toLowerCase().includes(term),
+    );
+  }, [staff, q]);
 
   if (error) return <EmptyState title={error} />;
   if (!staff) return <div className="h-64 animate-pulse rounded-2xl bg-line" />;
@@ -43,11 +52,17 @@ export default function OrgStaff() {
         <button onClick={() => setEditing("new")} className="btn-primary">+ Add staff</button>
       </div>
 
+      {staff.length > 0 && (
+        <input className="field" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search staff by name, role, profession or membership no.…" />
+      )}
+
       {staff.length === 0 ? (
         <EmptyState title="No staff yet" hint="Add your team members to track their professions and CPD." />
+      ) : filtered.length === 0 ? (
+        <EmptyState title="No staff match your search" hint="Try a different name, role or profession." />
       ) : (
         <div className="card divide-y divide-line">
-          {staff.map((s) => (
+          {filtered.map((s) => (
             <div key={s.id} className="flex flex-wrap items-center gap-3 p-4">
               <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#EDF1F1] font-semibold text-muted">
                 {initials(s.name)}

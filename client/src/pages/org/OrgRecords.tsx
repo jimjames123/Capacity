@@ -7,6 +7,7 @@ import type { Booking } from "../../lib/types";
 export default function OrgRecords() {
   const [bookings, setBookings] = useState<Booking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [q, setQ] = useState("");
 
   useEffect(() => {
     api.get<{ bookings: Booking[] }>("/organization/bookings").then((r) => setBookings(r.bookings)).catch(() => setError("Could not load records"));
@@ -16,6 +17,11 @@ export default function OrgRecords() {
     () => (bookings ?? []).filter((b) => b.status === "COMPLETED").sort((a, b) => +new Date(b.date) - +new Date(a.date)),
     [bookings],
   );
+
+  const visible = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    return term ? completed.filter((b) => `${b.title} ${b.providerName ?? ""} ${b.category ?? ""}`.toLowerCase().includes(term)) : completed;
+  }, [completed, q]);
 
   if (error) return <EmptyState title={error} />;
   if (!bookings) return <div className="h-64 animate-pulse rounded-2xl bg-line" />;
@@ -30,11 +36,17 @@ export default function OrgRecords() {
         </p>
       </div>
 
+      {completed.length > 0 && (
+        <input className="field" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search records by training, provider or category…" />
+      )}
+
       {completed.length === 0 ? (
         <EmptyState title="No completed training yet" hint="Once a booking is marked completed, its record appears here." />
+      ) : visible.length === 0 ? (
+        <EmptyState title="No records match your search" />
       ) : (
         <div className="space-y-4">
-          {completed.map((b) => (
+          {visible.map((b) => (
             <div key={b.id} className="card p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">

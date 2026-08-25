@@ -22,6 +22,9 @@ export default function OrgAnnualPlan() {
   const [allocFor, setAllocFor] = useState<PlannedSession | null>(null);
   const [showScheduler, setShowScheduler] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [monthF, setMonthF] = useState("All");
+  const [statusF, setStatusF] = useState("All");
 
   function load() {
     api.get<{ sessions: PlannedSession[] }>("/organization/planned-sessions").then((r) => setSessions(r.sessions)).catch(() => setError("Could not load the annual plan"));
@@ -37,9 +40,24 @@ export default function OrgAnnualPlan() {
     return d || new Date().getFullYear();
   }, [sessions]);
 
+  const monthsPresent = useMemo(() => {
+    const set = new Set((sessions ?? []).map((s) => s.month).filter(Boolean));
+    return MONTHS.filter((m) => set.has(m));
+  }, [sessions]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (sessions ?? []).filter((s) => {
+      if (monthF !== "All" && s.month !== monthF) return false;
+      if (statusF !== "All" && s.status !== statusF) return false;
+      if (q && !`${s.course} ${s.provider} ${s.dept} ${s.sector}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [sessions, search, monthF, statusF]);
+
   const grouped = useMemo(() => {
     const map = new Map<number, PlannedSession[]>();
-    for (const s of sessions ?? []) {
+    for (const s of filtered) {
       const mi = MONTHS.indexOf(s.month);
       const key = mi === -1 ? 99 : mi;
       const list = map.get(key) ?? [];
@@ -47,7 +65,7 @@ export default function OrgAnnualPlan() {
       map.set(key, list);
     }
     return Array.from(map.entries()).sort((a, b) => a[0] - b[0]);
-  }, [sessions]);
+  }, [filtered]);
 
   async function advance(s: PlannedSession) {
     setBusy(s.id);
@@ -83,7 +101,22 @@ export default function OrgAnnualPlan() {
       ) : sessions.length === 0 ? (
         <EmptyState title="No sessions planned yet" hint="Schedule your first training session to build the annual plan." />
       ) : (
-        <div className="space-y-8">
+        <>
+          <div className="card grid gap-3 p-4 sm:grid-cols-[1fr_auto_auto]">
+            <input className="field" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search a training, provider or department…" />
+            <select className="field sm:w-44" value={monthF} onChange={(e) => setMonthF(e.target.value)}>
+              <option value="All">All months</option>
+              {monthsPresent.map((m) => <option key={m} value={m}>{MONTH_FULL[MONTHS.indexOf(m)]} {year}</option>)}
+            </select>
+            <select className="field sm:w-40" value={statusF} onChange={(e) => setStatusF(e.target.value)}>
+              {["All", "Planned", "In progress", "Completed"].map((s) => <option key={s} value={s}>{s === "All" ? "All statuses" : s}</option>)}
+            </select>
+          </div>
+
+          {filtered.length === 0 ? (
+            <EmptyState title="No sessions match these filters" hint="Try a different month, status or search term." />
+          ) : (
+          <div className="space-y-8">
           {grouped.map(([mi, items]) => (
             <div key={mi}>
               <div className="label-caps mb-3 text-muted">{mi === 99 ? "Unscheduled" : `${MONTH_FULL[mi]} ${year}`}</div>
@@ -94,7 +127,9 @@ export default function OrgAnnualPlan() {
               </div>
             </div>
           ))}
-        </div>
+          </div>
+          )}
+        </>
       )}
 
       <AllocateModal
