@@ -1,20 +1,30 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { useAuth } from "../lib/auth";
+import { useAuth, type AccountType } from "../lib/auth";
 import { Logo } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { homePathForUser } from "../lib/nav";
 
 const PROFESSIONS = ["HR", "Finance", "Engineering", "Marketing", "Cross-industry"];
 
+const ACCOUNT_TYPES: { value: AccountType; label: string; hint: string }[] = [
+  { value: "individual", label: "Individual", hint: "Track your own CPD" },
+  { value: "organization", label: "Organization", hint: "Train and manage a team" },
+  { value: "consultant", label: "Consultant", hint: "Offer accredited training" },
+];
+
 export default function Auth({ mode }: { mode: "signin" | "signup" }) {
   const { user, signin, signup } = useAuth();
   const navigate = useNavigate();
 
+  const [accountType, setAccountType] = useState<AccountType>("individual");
+  const [consultantType, setConsultantType] = useState<"institution" | "individual">("individual");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [profession, setProfession] = useState(PROFESSIONS[0]);
+  const [sector, setSector] = useState("");
+  const [expertise, setExpertise] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -22,13 +32,28 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
 
   const isSignup = mode === "signup";
 
+  const nameLabel =
+    accountType === "organization" ? "Organization name"
+    : accountType === "consultant" ? (consultantType === "institution" ? "Institution name" : "Your name")
+    : "Full name";
+  const namePlaceholder =
+    accountType === "organization" ? "Nile Insurance Uganda"
+    : accountType === "consultant" ? (consultantType === "institution" ? "Kampala Leadership Institute" : "Dr. Sarah Kembabazi")
+    : "Aisha Nakato";
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setBusy(true);
     try {
       if (isSignup) {
-        const u = await signup({ name, email, password, profession });
+        const u = await signup({
+          name, email, password, accountType,
+          profession: accountType === "individual" ? profession : undefined,
+          consultantType: accountType === "consultant" ? consultantType : undefined,
+          sector: accountType === "organization" ? sector : undefined,
+          expertise: accountType === "consultant" ? expertise : undefined,
+        });
         navigate(homePathForUser(u));
       } else {
         const u = await signin(email, password);
@@ -66,8 +91,8 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
             Your continuing professional development, verified and in one place.
           </h2>
           <p className="mt-4 max-w-sm text-[#B9C6C6]">
-            Join 2,400+ professionals across Uganda who track their CPD and share
-            a trusted, verified record.
+            Join 2,400+ professionals, organisations and consultants across Uganda on a
+            trusted, verified CPD record.
           </p>
         </div>
         <div className="text-[12.5px] text-[#7E9292]">
@@ -107,19 +132,62 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
           </h1>
           <p className="mt-1.5 text-sm text-muted">
             {isSignup
-              ? "Start tracking your CPD in under a minute."
+              ? "Choose how you'll use CapacitySpot to get started."
               : "Log in to your CPD dashboard."}
           </p>
 
           <form onSubmit={submit} className="mt-6 space-y-4">
             {isSignup && (
               <div>
-                <label className="field-label">Full name</label>
+                <label className="field-label">I'm signing up as</label>
+                <div className="mt-1.5 grid grid-cols-3 gap-2">
+                  {ACCOUNT_TYPES.map((t) => (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => setAccountType(t.value)}
+                      className={`rounded-xl border px-2 py-2.5 text-center transition ${
+                        accountType === t.value
+                          ? "border-teal bg-teal-soft"
+                          : "border-line bg-white hover:border-line-strong"
+                      }`}
+                    >
+                      <div className={`text-[13px] font-semibold ${accountType === t.value ? "text-teal" : "text-ink"}`}>{t.label}</div>
+                      <div className="mt-0.5 text-[10.5px] leading-tight text-muted">{t.hint}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {isSignup && accountType === "consultant" && (
+              <div>
+                <label className="field-label">Consultant type</label>
+                <div className="mt-1.5 inline-flex w-full rounded-xl border border-line bg-white p-1">
+                  {([["individual", "Individual consultant"], ["institution", "Institution consultant"]] as const).map(([v, label]) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setConsultantType(v)}
+                      className={`flex-1 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition ${
+                        consultantType === v ? "bg-ink text-white" : "text-muted"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {isSignup && (
+              <div>
+                <label className="field-label">{nameLabel}</label>
                 <input
                   className="field"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Aisha Nakato"
+                  placeholder={namePlaceholder}
                   required
                 />
               </div>
@@ -146,7 +214,8 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
                 required
               />
             </div>
-            {isSignup && (
+
+            {isSignup && accountType === "individual" && (
               <div>
                 <label className="field-label">Your profession</label>
                 <select
@@ -161,6 +230,30 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
               </div>
             )}
 
+            {isSignup && accountType === "organization" && (
+              <div>
+                <label className="field-label">Sector <span className="font-normal text-muted">(optional)</span></label>
+                <input
+                  className="field"
+                  value={sector}
+                  onChange={(e) => setSector(e.target.value)}
+                  placeholder="Financial services"
+                />
+              </div>
+            )}
+
+            {isSignup && accountType === "consultant" && (
+              <div>
+                <label className="field-label">Area of expertise <span className="font-normal text-muted">(optional)</span></label>
+                <input
+                  className="field"
+                  value={expertise}
+                  onChange={(e) => setExpertise(e.target.value)}
+                  placeholder="Leadership, governance & compliance"
+                />
+              </div>
+            )}
+
             {error && (
               <div className="rounded-lg border border-rust-line bg-rust-soft px-3.5 py-2.5 text-sm text-rust">
                 {error}
@@ -171,6 +264,13 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
               {busy ? "Please wait…" : isSignup ? "Create account" : "Log in"}
             </button>
           </form>
+
+          {isSignup && accountType === "consultant" && (
+            <p className="mt-3 text-center text-[12px] text-muted">
+              New consultant accounts are reviewed by the professional body before your
+              listings go live.
+            </p>
+          )}
 
           {!isSignup && (
             <button

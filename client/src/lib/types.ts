@@ -142,6 +142,74 @@ export interface OrgReport {
   bidsReceived: number;
 }
 
+/** A department with its sectors, used across catalog filters and scheduling. */
+export interface OrgDepartment {
+  name: string;
+  sectors: string[];
+}
+
+/** A bookable course in the org catalog (offered by a consultant). */
+export interface CatalogSession {
+  id: string;
+  title: string;
+  description: string;
+  dept: string;
+  sector: string;
+  consultant: string;
+  date: string;
+  location: string;
+  format: string;
+  points: number;
+  fee: string;
+  capacity: number;
+  booked: number;
+}
+
+export type PlannedStatus = "Planned" | "In progress" | "Completed";
+
+/** A planned training session on the annual calendar, with allocated staff. */
+export interface PlannedSession {
+  id: string;
+  course: string;
+  description: string;
+  dept: string;
+  sector: string;
+  mode: string;
+  venue: string;
+  address: string;
+  platform: string;
+  link: string;
+  access: string;
+  cost: number;
+  costBasis: string;
+  provider: string;
+  providerType: string;
+  date: string;
+  month: string;
+  time: string;
+  capacity: number;
+  status: PlannedStatus;
+  allocated: { id: string; name: string; dept: string | null }[];
+}
+
+/** Rich reporting for the org overview screen. */
+export interface OrgOverview {
+  totalSessions: number;
+  totalAllocated: number;
+  completionRate: number;
+  totalBudget: string;
+  byDepartment: {
+    name: string;
+    sessions: number;
+    staff: number;
+    budget: number;
+    budgetShort: string;
+    share: number;
+  }[];
+  participation: { label: string; count: number }[];
+  audit: { actor: string; action: string; target: string; time: string }[];
+}
+
 export interface Booking {
   id: string;
   title: string;

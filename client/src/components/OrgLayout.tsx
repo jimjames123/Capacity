@@ -2,16 +2,17 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 
 const NAV = [
-  { to: "/org", label: "Home", end: true },
+  { to: "/org", label: "Dashboard", end: true },
   { to: "/org/staff", label: "Staff", end: false },
+  { to: "/org/catalog", label: "Catalog", end: false },
   { to: "/org/consultants", label: "Consultants", end: false },
-  { to: "/org/browse", label: "Browse training", end: false },
-  { to: "/org/inhouse", label: "In-house request", end: false },
-  { to: "/org/tenders", label: "My tenders", end: false },
+  { to: "/org/tenders", label: "Tender Board", end: false },
+  { to: "/org/annual-plan", label: "Annual Plan", end: false },
+  { to: "/org/records", label: "Activity Records", end: false },
+  { to: "/org/reports", label: "Reports & Audit", end: false },
+  { to: "/org/inhouse", label: "In-house", end: false },
   { to: "/org/bookings", label: "Bookings", end: false },
-  { to: "/org/calendar", label: "Calendar", end: false },
-  { to: "/org/records", label: "Activity records", end: false },
-  { to: "/org/reports", label: "Reports", end: false },
+  { to: "/org/profile", label: "Profile", end: false },
 ];
 
 export function OrgLayout() {

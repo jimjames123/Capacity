@@ -16,7 +16,12 @@ const signupSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
+  accountType: z.enum(["individual", "organization", "consultant"]).optional(),
   profession: z.string().optional(),
+  consultantType: z.enum(["institution", "individual"]).optional(),
+  sector: z.string().optional(),
+  location: z.string().optional(),
+  expertise: z.string().optional(),
 });
 
 const signinSchema = z.object({
@@ -46,20 +51,45 @@ authRouter.post("/signup", async (req, res) => {
     res.status(400).json({ error: "Invalid details", issues: parsed.error.issues });
     return;
   }
-  const { name, email, password, profession } = parsed.data;
+  const { name, email, password, profession, consultantType, sector, location, expertise } = parsed.data;
+  const accountType = parsed.data.accountType ?? "individual";
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     res.status(409).json({ error: "An account with that email already exists" });
     return;
   }
+  const passwordHash = await hashPassword(password);
+
+  if (accountType === "organization") {
+    const org = await prisma.organization.create({
+      data: { name, sector: sector ?? null, contactEmail: email },
+    });
+    const user = await prisma.user.create({
+      data: { name, email, passwordHash, role: "ORG", organizationId: org.id, onboarded: true },
+    });
+    res.status(201).json({ token: signToken(user.id), user: publicUser(user) });
+    return;
+  }
+
+  if (accountType === "consultant") {
+    const initials = (name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("") || "?").toUpperCase();
+    const type = consultantType === "institution" ? "Institution" : "Individual consultant";
+    const provider = await prisma.provider.create({
+      data: {
+        name, initials, type, verified: false, rating: 0,
+        meta: location ? `${location} · new applicant` : "New applicant",
+        bio: expertise ?? null,
+      },
+    });
+    const user = await prisma.user.create({
+      data: { name, email, passwordHash, role: "PROVIDER", providerId: provider.id, onboarded: true },
+    });
+    res.status(201).json({ token: signToken(user.id), user: publicUser(user) });
+    return;
+  }
+
   const user = await prisma.user.create({
-    data: {
-      name,
-      email,
-      passwordHash: await hashPassword(password),
-      profession: profession ?? null,
-      role: "MEMBER",
-    },
+    data: { name, email, passwordHash, profession: profession ?? null, role: "MEMBER" },
   });
   await seedFirstCycle(user.id);
   res.status(201).json({ token: signToken(user.id), user: publicUser(user) });

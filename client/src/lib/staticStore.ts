@@ -23,7 +23,7 @@ import type {
 } from "./types";
 
 // Bump when the seed shape changes so returning visitors get fresh demo data.
-const LS_KEY = "cs_static_db_v6";
+const LS_KEY = "cs_static_db_v7";
 
 interface StoredUser extends User {
   password: string;
@@ -41,6 +41,58 @@ interface DB {
   tenders: DbTender[];
   bids: DbBid[];
   bookings: DbBooking[];
+  catalog: DbCatalog[];
+  plannedSessions: DbPlanned[];
+}
+
+/** Departments and their sectors, shared across catalog filters and scheduling. */
+const ORG_DEPARTMENTS = [
+  { name: "Finance", sectors: ["Financial Reporting", "Audit & Assurance", "Tax & Compliance"] },
+  { name: "Human Resources", sectors: ["Talent & Recruitment", "Learning & Development", "HR Operations"] },
+  { name: "Engineering", sectors: ["Civil & Structural", "Mechanical", "Project Delivery"] },
+  { name: "Marketing", sectors: ["Brand & Communications", "Digital Marketing"] },
+  { name: "Operations", sectors: ["Logistics", "Procurement", "Quality Assurance"] },
+];
+
+interface DbCatalog {
+  id: string;
+  title: string;
+  description: string;
+  dept: string;
+  sector: string;
+  consultant: string;
+  date: string;
+  location: string;
+  format: string;
+  points: number;
+  fee: string;
+  capacity: number;
+  booked: number;
+}
+
+interface DbPlanned {
+  id: string;
+  organizationId: string;
+  course: string;
+  description: string;
+  dept: string;
+  sector: string;
+  mode: string;
+  venue: string;
+  address: string;
+  platform: string;
+  link: string;
+  access: string;
+  cost: number;
+  costBasis: string;
+  provider: string;
+  providerType: string;
+  date: string;
+  month: string;
+  time: string;
+  capacity: number;
+  status: string;
+  allocated: string[];
 }
 
 // ---- Static catalogue (providers, courses, reviews) ------------------------
@@ -249,11 +301,16 @@ function seed(): DB {
     ({ id, organizationId, name, email, jobTitle, profession, membershipNo, createdAt: iso("2025-11-01") });
 
   const staff: Staff[] = [
-    mkStaff("st1", "org_nwsc", "Aisha Nakato", "aisha@example.com", "Senior HR Business Partner", "HR", "HRM-2024-0417"),
-    mkStaff("st2", "org_nwsc", "Peter Okot", "peter.okot@nwsc.example.ug", "Finance Officer", "Finance", "ICP-2023-1180"),
-    mkStaff("st3", "org_nwsc", "Joan Akello", "joan.akello@nwsc.example.ug", "Civil Engineer", "Engineering", "UIPE-2022-0455"),
+    mkStaff("n1", "org_nwsc", "Aisha Nakato", "aisha@example.com", "HR Manager", "Human Resources", "HRM-2024-0417"),
+    mkStaff("n2", "org_nwsc", "Brian Okello", "brian.okello@nwsc.example.ug", "Senior Accountant", "Finance", "ICP-2019-0233"),
+    mkStaff("n3", "org_nwsc", "Sarah Namuli", "sarah.namuli@nwsc.example.ug", "Finance Analyst", "Finance", "ICP-2021-0508"),
+    mkStaff("n4", "org_nwsc", "Joseph Ssekandi", "joseph.s@nwsc.example.ug", "Site Engineer", "Engineering", "UIPE-2018-0091"),
+    mkStaff("n5", "org_nwsc", "Grace Achieng", "grace.achieng@nwsc.example.ug", "Brand Lead", "Marketing", "MSU-2022-0674"),
+    mkStaff("n6", "org_nwsc", "Peter Mugisha", "peter.mugisha@nwsc.example.ug", "Operations Officer", "Operations", "OPS-2020-0345"),
+    mkStaff("n7", "org_nwsc", "Rehema Nabirye", "rehema.n@nwsc.example.ug", "HR Officer", "Human Resources", "HRM-2023-0712"),
+    mkStaff("n8", "org_nwsc", "Daniel Tumusiime", "daniel.t@nwsc.example.ug", "Internal Auditor", "Finance", "ICP-2017-0056"),
     mkStaff("st4", "org_stanbic", "Brian Mugume", "brian.mugume@stanbic.example.ug", "Risk Analyst", "Finance", "ICP-2024-2210"),
-    mkStaff("st5", "org_stanbic", "Linda Nabukenya", "linda.n@stanbic.example.ug", "HR Manager", "HR", "HRM-2021-0902"),
+    mkStaff("st5", "org_stanbic", "Linda Nabukenya", "linda.n@stanbic.example.ug", "HR Manager", "Human Resources", "HRM-2021-0902"),
     mkStaff("st6", "org_ura", "Samuel Wanyama", "samuel.w@ura.example.ug", "Tax Officer", "Finance", "ICP-2020-0771"),
   ];
 
@@ -297,6 +354,21 @@ function seed(): DB {
       { id: "bk3", organizationId: "org_nwsc", title: "Structural Integrity & Safety Auditing", providerName: "Uganda Institute of Applied Professionals", category: "Engineering", staffCount: 6, date: iso("2026-06-04"), cost: "UGX 3,720,000", paid: false, status: "SCHEDULED", attendance: null, certificateIssued: false, outcome: null, createdAt: iso("2026-04-30") },
       { id: "bk4", organizationId: "org_nwsc", title: "Leading Change in Public Institutions", providerName: "Dr. Grace Ssembatya", category: "Cross-industry", staffCount: 12, date: iso("2026-07-22"), cost: "UGX 6,480,000", paid: false, status: "SCHEDULED", attendance: null, certificateIssued: false, outcome: null, createdAt: iso("2026-05-10") },
       { id: "bk5", organizationId: "org_nwsc", title: "Employment Law for HR Professionals", providerName: "Makerere Executive Institute", category: "HR", staffCount: 4, date: iso("2026-09-09"), cost: "UGX 1,040,000", paid: false, status: "SCHEDULED", attendance: null, certificateIssued: false, outcome: null, createdAt: iso("2026-06-01") },
+    ],
+    catalog: [
+      { id: "cat1", title: "Strategic Workforce Planning", description: "Align headcount, capability and succession with business strategy.", dept: "Human Resources", sector: "Learning & Development", consultant: "Grace Nabbanja", date: "12 Sep 2026", location: "Kampala", format: "In-person", points: 3.0, fee: "UGX 450,000", capacity: 25, booked: 21 },
+      { id: "cat2", title: "Financial Modelling & Valuation", description: "Build robust three-statement models and value businesses.", dept: "Finance", sector: "Financial Reporting", consultant: "David Mukasa, CFA", date: "Self-paced", location: "Online", format: "Online", points: 2.0, fee: "UGX 300,000", capacity: 40, booked: 40 },
+      { id: "cat3", title: "Occupational Safety & Health Essentials", description: "Workplace safety, hazard control and regulatory compliance.", dept: "Operations", sector: "Quality Assurance", consultant: "Dr. Sarah Kembabazi", date: "03 Oct 2026", location: "Entebbe", format: "In-person", points: 1.5, fee: "UGX 200,000", capacity: 30, booked: 12 },
+      { id: "cat4", title: "Leadership Masterclass", description: "Executive presence, coaching and leading through change.", dept: "Human Resources", sector: "Learning & Development", consultant: "Grace Nabbanja", date: "21 Nov 2026", location: "Kampala", format: "Hybrid", points: 2.5, fee: "UGX 500,000", capacity: 20, booked: 18 },
+      { id: "cat5", title: "Digital Marketing Strategy", description: "Analytics, paid media and brand growth for East African markets.", dept: "Marketing", sector: "Digital Marketing", consultant: "Brenda Atim", date: "15 Oct 2026", location: "Kampala", format: "In-person", points: 2.0, fee: "UGX 380,000", capacity: 25, booked: 9 },
+      { id: "cat6", title: "Structural Design with Eurocodes", description: "Applied structural analysis to Eurocode standards.", dept: "Engineering", sector: "Civil & Structural", consultant: "Eng. Robert Ssali", date: "28 Nov 2026", location: "Jinja", format: "In-person", points: 2.5, fee: "UGX 560,000", capacity: 18, booked: 4 },
+    ],
+    plannedSessions: [
+      { id: "ps1", organizationId: "org_nwsc", course: "IFRS Update 2026", description: "Annual refresher on new IFRS standards for the finance team.", dept: "Finance", sector: "Financial Reporting", mode: "Physical", venue: "Serena Conference Centre", address: "Kintu Road, Kampala", platform: "", link: "", access: "", cost: 620000, costBasis: "Per participant", provider: "Kampala School of Accountancy", providerType: "External", date: "18 Mar 2026", month: "Mar", time: "09:00–16:00", capacity: 6, status: "Completed", allocated: ["n2", "n3", "n8"] },
+      { id: "ps2", organizationId: "org_nwsc", course: "Talent Acquisition Bootcamp", description: "Modern sourcing, interviewing and employer-branding practices.", dept: "Human Resources", sector: "Talent & Recruitment", mode: "Physical", venue: "Head Office Training Room", address: "Plot 5, Nakasero, Kampala", platform: "", link: "", access: "", cost: 400000, costBasis: "Per participant", provider: "Kampala Leadership Institute", providerType: "External", date: "11 Jun 2026", month: "Jun", time: "09:30–15:30", capacity: 4, status: "In progress", allocated: ["n1", "n7"] },
+      { id: "ps3", organizationId: "org_nwsc", course: "Project Management for Engineers", description: "PMBOK-aligned delivery for infrastructure projects.", dept: "Engineering", sector: "Project Delivery", mode: "Online", venue: "", address: "", platform: "Zoom", link: "zoom.us/j/cpd-eng-2026", access: "Link sent 24h before start.", cost: 350000, costBasis: "Per participant", provider: "Nakawa Technical Consult", providerType: "External", date: "15 Sep 2026", month: "Sep", time: "14:00–17:00", capacity: 3, status: "Planned", allocated: ["n4"] },
+      { id: "ps4", organizationId: "org_nwsc", course: "Digital Marketing Strategy", description: "Analytics, paid media and brand growth for East African markets.", dept: "Marketing", sector: "Digital Marketing", mode: "Physical", venue: "BrandForge Studio", address: "Bugolobi, Kampala", platform: "", link: "", access: "", cost: 380000, costBasis: "Per participant", provider: "BrandForge Consulting", providerType: "External", date: "15 Oct 2026", month: "Oct", time: "10:00–16:00", capacity: 3, status: "Planned", allocated: ["n5"] },
+      { id: "ps5", organizationId: "org_nwsc", course: "Internal Controls & Fraud Risk", description: "Building a controls culture and detecting fraud early.", dept: "Finance", sector: "Audit & Assurance", mode: "Online", venue: "", address: "", platform: "Microsoft Teams", link: "teams.microsoft.com/l/cpd-fin", access: "Join via calendar invite.", cost: 0, costBasis: "Internal (no cost)", provider: "Internal Audit Team", providerType: "Internal", date: "20 Nov 2026", month: "Nov", time: "09:00–12:00", capacity: 5, status: "Planned", allocated: ["n2", "n3"] },
     ],
   };
 }
@@ -435,6 +507,77 @@ function publicUser(u: StoredUser): User {
   return rest;
 }
 
+// ---- Annual plan & reporting helpers ---------------------------------------
+
+function fmtUGX(n: number): string {
+  return `UGX ${Math.round(n).toLocaleString("en-US")}`;
+}
+
+/** Budget attributable to a planned session, per its cost basis. */
+function sessionBudget(p: DbPlanned): number {
+  if (p.costBasis.startsWith("Internal")) return 0;
+  if (p.costBasis === "Per participant") return p.cost * p.capacity;
+  return p.cost; // Total for session
+}
+
+function plannedView(db: DB, p: DbPlanned) {
+  const allocated = p.allocated
+    .map((sid) => db.staff.find((s) => s.id === sid))
+    .filter((s): s is Staff => !!s)
+    .map((s) => ({ id: s.id, name: s.name, dept: s.profession }));
+  return {
+    id: p.id, course: p.course, description: p.description, dept: p.dept, sector: p.sector,
+    mode: p.mode, venue: p.venue, address: p.address, platform: p.platform, link: p.link, access: p.access,
+    cost: p.cost, costBasis: p.costBasis, provider: p.provider, providerType: p.providerType,
+    date: p.date, month: p.month, time: p.time, capacity: p.capacity, status: p.status, allocated,
+  };
+}
+
+function buildOverview(db: DB, oid: string) {
+  const sessions = db.plannedSessions.filter((p) => p.organizationId === oid);
+  const totalSessions = sessions.length;
+  const totalAllocated = sessions.reduce((s, p) => s + p.allocated.length, 0);
+  const completed = sessions.filter((p) => p.status === "Completed").length;
+  const completionRate = totalSessions ? Math.round((completed / totalSessions) * 100) : 0;
+  const totalBudget = sessions.reduce((s, p) => s + sessionBudget(p), 0);
+
+  const deptMap: Record<string, { sessions: number; staff: number; budget: number }> = {};
+  for (const p of sessions) {
+    const d = (deptMap[p.dept] = deptMap[p.dept] ?? { sessions: 0, staff: 0, budget: 0 });
+    d.sessions += 1;
+    d.staff += p.allocated.length;
+    d.budget += sessionBudget(p);
+  }
+  const byDepartment = Object.entries(deptMap)
+    .map(([name, v]) => ({
+      name, sessions: v.sessions, staff: v.staff, budget: v.budget,
+      budgetShort: v.budget.toLocaleString("en-US"),
+      share: totalBudget ? Math.round((v.budget / totalBudget) * 100) : 0,
+    }))
+    .sort((a, b) => b.budget - a.budget);
+
+  const participation = [
+    { label: "Completed", count: sessions.filter((p) => p.status === "Completed").length },
+    { label: "In progress", count: sessions.filter((p) => p.status === "In progress").length },
+    { label: "Planned", count: sessions.filter((p) => p.status === "Planned").length },
+  ];
+
+  const org = db.organizations.find((o) => o.id === oid);
+  const contact = org?.contactName ?? "People & Culture";
+  const audit = sessions
+    .slice()
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .slice(0, 6)
+    .map((p) => ({
+      actor: contact,
+      action: p.status === "Completed" ? "Completed session" : p.allocated.length ? "Allocated staff to" : "Scheduled",
+      target: p.course,
+      time: p.date,
+    }));
+
+  return { totalSessions, totalAllocated, completionRate, totalBudget: fmtUGX(totalBudget), byDepartment, participation, audit };
+}
+
 // ---- Router ----------------------------------------------------------------
 
 export async function handle(method: string, path: string, body: unknown): Promise<unknown> {
@@ -446,7 +589,31 @@ export async function handle(method: string, path: string, body: unknown): Promi
   // --- Auth ---
   if (method === "POST" && rawPath === "/auth/signup") {
     if (db.users.some((u) => u.email === b.email)) throw { status: 409, error: "An account with that email already exists" };
-    const user: StoredUser = { id: uid("u_"), email: b.email, password: b.password, name: b.name, role: "MEMBER", profession: b.profession ?? null, membershipNo: null, professionalBody: null, jobTitle: null, organisation: null, onboarded: false, createdAt: new Date().toISOString() };
+    const accountType = (b.accountType ?? "individual") as string;
+    const base = { id: uid("u_"), email: b.email, password: b.password, name: b.name, membershipNo: null, professionalBody: null, jobTitle: null, organisation: null, createdAt: new Date().toISOString() };
+
+    if (accountType === "organization") {
+      const org = { id: uid("org_"), name: b.name, sector: b.sector ?? null, district: b.district ?? null, contactName: b.contactName ?? null, contactEmail: b.email, contactPhone: null };
+      db.organizations.push(org);
+      const user: StoredUser = { ...base, role: "ORG", profession: null, onboarded: true, organizationId: org.id };
+      db.users.push(user);
+      save(db);
+      return { token: TOKEN_PREFIX + user.id, user: publicUser(user) };
+    }
+
+    if (accountType === "consultant") {
+      const name: string = b.name ?? "";
+      const initials = (name.split(" ").filter(Boolean).slice(0, 2).map((w: string) => w[0]).join("") || "?").toUpperCase();
+      const type = b.consultantType === "institution" ? "Institution" : "Individual consultant";
+      const provider: Provider = { id: uid("prov_"), name, initials, type, verified: false, rating: 0, meta: b.location ? `${b.location} · new applicant` : "New applicant", bio: b.expertise ?? null };
+      db.providers.push(provider);
+      const user: StoredUser = { ...base, role: "PROVIDER", profession: null, onboarded: true, providerId: provider.id };
+      db.users.push(user);
+      save(db);
+      return { token: TOKEN_PREFIX + user.id, user: publicUser(user) };
+    }
+
+    const user: StoredUser = { ...base, role: "MEMBER", profession: b.profession ?? null, onboarded: false };
     db.users.push(user);
     const year = new Date().getFullYear();
     db.cycles.push({ id: uid("cy"), userId: user.id, label: `Jan ${year} – Dec ${year}`, startDate: iso(`${year}-01-01`), endDate: iso(`${year}-12-31`), requiredPoints: 12, isCurrent: true, certRef: null, registrarName: null, issuedAt: null } as unknown as Cycle);
@@ -1334,6 +1501,96 @@ export async function handle(method: string, path: string, body: unknown): Promi
     db.bookings = db.bookings.filter((x) => x.id !== id);
     save(db);
     return { ok: true };
+  }
+
+  // --- Organization: departments ---
+  if (method === "GET" && rawPath === "/organization/departments") {
+    requireOrg(db);
+    return { departments: ORG_DEPARTMENTS };
+  }
+
+  // --- Organization: course catalog (global, bookable) ---
+  if (method === "GET" && rawPath === "/organization/catalog") {
+    requireOrg(db);
+    return { sessions: db.catalog.map((c) => ({ ...c, spotsLeft: Math.max(0, c.capacity - c.booked) })) };
+  }
+  if (method === "POST" && /^\/organization\/catalog\/[^/]+\/book$/.test(rawPath)) {
+    const oid = requireOrg(db);
+    const id = rawPath.split("/")[3];
+    const c = db.catalog.find((x) => x.id === id);
+    if (!c) throw { status: 404, error: "Course not found" };
+    const want = Math.max(1, Number(b.count) || 1);
+    const spotsLeft = Math.max(0, c.capacity - c.booked);
+    if (spotsLeft <= 0) throw { status: 400, error: "This course is fully booked" };
+    const taken = Math.min(want, spotsLeft);
+    c.booked += taken;
+    // Record the booking so it also appears under Bookings.
+    const parsed = new Date(c.date);
+    const when = isNaN(+parsed) ? new Date().toISOString() : parsed.toISOString();
+    db.bookings.push({ id: uid("bk_"), organizationId: oid, title: c.title, providerName: c.consultant, category: c.dept, staffCount: taken, date: when, cost: c.fee, paid: false, status: "SCHEDULED", attendance: null, certificateIssued: false, outcome: null, createdAt: new Date().toISOString() });
+    save(db);
+    return { ok: true, booked: taken, spotsLeft: Math.max(0, c.capacity - c.booked) };
+  }
+
+  // --- Organization: annual plan (planned sessions) ---
+  if (method === "GET" && rawPath === "/organization/planned-sessions") {
+    const oid = requireOrg(db);
+    const sessions = db.plannedSessions
+      .filter((p) => p.organizationId === oid)
+      .map((p) => plannedView(db, p));
+    return { sessions };
+  }
+  if (method === "POST" && rawPath === "/organization/planned-sessions") {
+    const oid = requireOrg(db);
+    const d = new Date(b.date);
+    const month = isNaN(+d) ? "" : d.toLocaleString("en-GB", { month: "short" });
+    const dateLabel = isNaN(+d) ? String(b.date ?? "") : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    const p: DbPlanned = {
+      id: uid("ps_"), organizationId: oid, course: b.course, description: b.description ?? "",
+      dept: b.dept, sector: b.sector, mode: b.mode ?? "Physical",
+      venue: b.venue ?? "", address: b.address ?? "", platform: b.platform ?? "", link: b.link ?? "", access: b.access ?? "",
+      cost: Number(b.cost) || 0, costBasis: b.costBasis ?? "Per participant",
+      provider: b.provider ?? "", providerType: b.providerType ?? "External",
+      date: dateLabel, month, time: b.time ?? "", capacity: Number(b.capacity) || 0,
+      status: "Planned", allocated: [],
+    };
+    db.plannedSessions.push(p);
+    save(db);
+    return { id: p.id };
+  }
+  if (method === "PATCH" && /^\/organization\/planned-sessions\/[^/]+$/.test(rawPath)) {
+    const oid = requireOrg(db);
+    const id = rawPath.split("/")[3];
+    const p = db.plannedSessions.find((x) => x.id === id && x.organizationId === oid);
+    if (!p) throw { status: 404, error: "Session not found" };
+    if (b.toggleStaff !== undefined) {
+      const sid = String(b.toggleStaff);
+      if (p.allocated.includes(sid)) p.allocated = p.allocated.filter((x) => x !== sid);
+      else if (p.allocated.length < p.capacity) p.allocated.push(sid);
+      else throw { status: 400, error: "Session is at capacity" };
+    }
+    if (b.advanceStatus) {
+      const order = ["Planned", "In progress", "Completed"];
+      const i = order.indexOf(p.status);
+      p.status = order[Math.min(order.length - 1, i + 1)];
+    }
+    if (b.status !== undefined) p.status = b.status;
+    save(db);
+    return { ok: true };
+  }
+  if (method === "DELETE" && /^\/organization\/planned-sessions\/[^/]+$/.test(rawPath)) {
+    const oid = requireOrg(db);
+    const id = rawPath.split("/")[3];
+    if (!db.plannedSessions.some((x) => x.id === id && x.organizationId === oid)) throw { status: 404, error: "Session not found" };
+    db.plannedSessions = db.plannedSessions.filter((x) => x.id !== id);
+    save(db);
+    return { ok: true };
+  }
+
+  // --- Organization: rich reports overview ---
+  if (method === "GET" && rawPath === "/organization/overview") {
+    const oid = requireOrg(db);
+    return buildOverview(db, oid);
   }
 
   // --- Admin: course & trainer approval queues ---

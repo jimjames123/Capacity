@@ -1,55 +1,54 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { EmptyState } from "../../components/ui";
-import type { OrgReport } from "../../lib/types";
+import type { OrgOverview } from "../../lib/types";
+
+const DEPT_BAR = ["bg-ink", "bg-teal", "bg-green", "bg-amber-strong", "bg-rust"];
 
 export default function OrgReports() {
-  const [data, setData] = useState<OrgReport | null>(null);
+  const [data, setData] = useState<OrgOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api
-      .get<OrgReport>("/organization/reports")
-      .then(setData)
-      .catch(() => setError("Could not load reports"));
+    api.get<OrgOverview>("/organization/overview").then(setData).catch(() => setError("Could not load reports"));
   }, []);
 
   if (error) return <EmptyState title={error} />;
   if (!data) return <div className="h-64 animate-pulse rounded-2xl bg-line" />;
 
-  const professions = Object.entries(data.byProfession).sort((a, b) => b[1] - a[1]);
-  const maxProf = Math.max(1, ...professions.map(([, n]) => n));
+  const maxBudget = Math.max(1, ...data.byDepartment.map((d) => d.budget));
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-3xl font-bold text-ink">Reports</h1>
-        <p className="mt-2 text-muted">A snapshot of your team and training activity.</p>
+        <h1 className="font-serif text-3xl font-bold text-ink">Reports &amp; overview</h1>
+        <p className="mt-2 text-muted">Training plan, budget and participation across your organization.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Tile label="Staff" value={data.staffTotal} />
-        <Tile label="Bids received" value={data.bidsReceived} />
-        <Tile label="Open tenders" value={data.tendersByStatus.OPEN} />
-        <Tile label="Awarded" value={data.tendersByStatus.AWARDED} />
+        <Tile label="Planned sessions" value={String(data.totalSessions)} dark />
+        <Tile label="Staff enrolled" value={String(data.totalAllocated)} />
+        <Tile label="Completion rate" value={`${data.completionRate}%`} />
+        <Tile label="Total budget" value={data.totalBudget} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="card p-6">
-          <h2 className="font-serif text-lg font-semibold text-ink">Staff by profession</h2>
-          {professions.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">No staff on the register yet.</p>
+          <h2 className="font-serif text-lg font-semibold text-ink">Training plan by department</h2>
+          {data.byDepartment.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">No sessions planned yet.</p>
           ) : (
-            <ul className="mt-4 space-y-3">
-              {professions.map(([prof, n]) => (
-                <li key={prof}>
-                  <div className="mb-1 flex items-center justify-between text-[13px]">
-                    <span className="font-medium text-ink">{prof}</span>
-                    <span className="text-muted">{n}</span>
+            <ul className="mt-4 space-y-4">
+              {data.byDepartment.map((d, i) => (
+                <li key={d.name}>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-semibold text-ink">{d.name}</span>
+                    <span className="text-muted">{d.sessions} session{d.sessions === 1 ? "" : "s"} · {d.staff} staff</span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-[#EDF1F1]">
-                    <div className="h-full rounded-full bg-teal" style={{ width: `${(n / maxProf) * 100}%` }} />
+                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[#EDF1F1]">
+                    <div className={`h-full rounded-full ${DEPT_BAR[i % DEPT_BAR.length]}`} style={{ width: `${(d.budget / maxBudget) * 100}%` }} />
                   </div>
+                  <div className="mt-1 font-mono text-[12px] text-muted">UGX {d.budgetShort}</div>
                 </li>
               ))}
             </ul>
@@ -57,26 +56,78 @@ export default function OrgReports() {
         </div>
 
         <div className="card p-6">
-          <h2 className="font-serif text-lg font-semibold text-ink">Tenders by status</h2>
+          <h2 className="font-serif text-lg font-semibold text-ink">Budget by department</h2>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="label-caps border-b border-line text-left text-muted">
+                  <th className="pb-2 font-semibold">Department</th>
+                  <th className="pb-2 text-right font-semibold">Budget (UGX)</th>
+                  <th className="pb-2 text-right font-semibold">Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.byDepartment.map((d) => (
+                  <tr key={d.name} className="border-b border-line">
+                    <td className="py-2.5 text-ink">{d.name}</td>
+                    <td className="py-2.5 text-right font-mono text-ink">{d.budgetShort}</td>
+                    <td className="py-2.5 text-right text-muted">{d.share}%</td>
+                  </tr>
+                ))}
+                <tr className="bg-[#F3F6F6] font-semibold">
+                  <td className="py-2.5 text-ink">Total</td>
+                  <td className="py-2.5 text-right font-mono text-ink">{data.totalBudget}</td>
+                  <td className="py-2.5 text-right text-ink">100%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div className="card p-6">
+          <h2 className="font-serif text-lg font-semibold text-ink">Participation status</h2>
           <ul className="mt-4 space-y-3">
-            {([["OPEN", "Open", "text-green"], ["AWARDED", "Awarded", "text-ink"], ["CLOSED", "Closed", "text-rust"]] as const).map(([key, label, cls]) => (
-              <li key={key} className="flex items-center justify-between border-b border-line pb-2.5 last:border-0">
-                <span className="text-sm text-muted">{label}</span>
-                <span className={`font-serif text-lg font-bold ${cls}`}>{data.tendersByStatus[key]}</span>
+            {data.participation.map((p) => (
+              <li key={p.label} className="flex items-center justify-between border-b border-line pb-2.5 last:border-0">
+                <span className="text-sm text-muted">{p.label}</span>
+                <span className="font-serif text-lg font-bold text-ink">{p.count}</span>
               </li>
             ))}
           </ul>
+        </div>
+
+        <div className="card p-6">
+          <h2 className="font-serif text-lg font-semibold text-ink">Audit log</h2>
+          <p className="mt-1 text-[13px] text-muted">Immutable record of who did what, and when.</p>
+          {data.audit.length === 0 ? (
+            <p className="mt-4 text-sm text-muted">No activity recorded yet.</p>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {data.audit.map((a, i) => (
+                <li key={i} className="flex items-start justify-between gap-3 border-b border-line pb-2.5 last:border-0">
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium text-ink">{a.actor}</span>
+                    <span className="text-sm text-muted"> {a.action.toLowerCase()} — </span>
+                    <span className="text-sm text-ink">{a.target}</span>
+                  </div>
+                  <span className="shrink-0 text-[12px] text-faint">{a.time}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function Tile({ label, value }: { label: string; value: number }) {
+function Tile({ label, value, dark }: { label: string; value: string; dark?: boolean }) {
   return (
-    <div className="card p-5">
-      <div className="label-caps">{label}</div>
-      <div className="mt-2 font-serif text-3xl font-bold text-ink">{value}</div>
+    <div className={`card p-5 ${dark ? "bg-ink text-white" : ""}`}>
+      <div className={`label-caps ${dark ? "text-[#B9C6C6]" : ""}`}>{label}</div>
+      <div className={`mt-2 font-serif text-3xl font-bold ${dark ? "text-white" : "text-ink"}`}>{value}</div>
     </div>
   );
 }

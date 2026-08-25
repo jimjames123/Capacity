@@ -33,12 +33,12 @@ import OrgHome from "./pages/org/OrgHome";
 import OrgStaff from "./pages/org/OrgStaff";
 import OrgConsultants from "./pages/org/OrgConsultants";
 import OrgConsultantDetail from "./pages/org/OrgConsultantDetail";
-import OrgBrowse from "./pages/org/OrgBrowse";
+import OrgCatalog from "./pages/org/OrgCatalog";
 import OrgInhouse from "./pages/org/OrgInhouse";
 import OrgTenders from "./pages/org/OrgTenders";
 import OrgTenderDetail from "./pages/org/OrgTenderDetail";
 import OrgBookings from "./pages/org/OrgBookings";
-import OrgCalendar from "./pages/org/OrgCalendar";
+import OrgAnnualPlan from "./pages/org/OrgAnnualPlan";
 import OrgRecords from "./pages/org/OrgRecords";
 import OrgReports from "./pages/org/OrgReports";
 import OrgProfile from "./pages/org/OrgProfile";
@@ -164,12 +164,12 @@ export default function App() {
         <Route path="staff" element={<OrgStaff />} />
         <Route path="consultants" element={<OrgConsultants />} />
         <Route path="consultants/:id" element={<OrgConsultantDetail />} />
-        <Route path="browse" element={<OrgBrowse />} />
+        <Route path="catalog" element={<OrgCatalog />} />
         <Route path="inhouse" element={<OrgInhouse />} />
         <Route path="tenders" element={<OrgTenders />} />
         <Route path="tenders/:id" element={<OrgTenderDetail />} />
         <Route path="bookings" element={<OrgBookings />} />
-        <Route path="calendar" element={<OrgCalendar />} />
+        <Route path="annual-plan" element={<OrgAnnualPlan />} />
         <Route path="records" element={<OrgRecords />} />
         <Route path="reports" element={<OrgReports />} />
         <Route path="profile" element={<OrgProfile />} />

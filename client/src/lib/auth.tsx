@@ -14,14 +14,23 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   signin: (email: string, password: string) => Promise<User>;
-  signup: (input: {
-    name: string;
-    email: string;
-    password: string;
-    profession?: string;
-  }) => Promise<User>;
+  signup: (input: SignupInput) => Promise<User>;
   updateProfile: (patch: Partial<User>) => Promise<User>;
   signout: () => void;
+}
+
+export type AccountType = "individual" | "organization" | "consultant";
+
+export interface SignupInput {
+  name: string;
+  email: string;
+  password: string;
+  accountType?: AccountType;
+  profession?: string;
+  consultantType?: "institution" | "individual";
+  sector?: string;
+  location?: string;
+  expertise?: string;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -55,20 +64,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return r.user;
   }, []);
 
-  const signup = useCallback(
-    async (input: {
-      name: string;
-      email: string;
-      password: string;
-      profession?: string;
-    }) => {
-      const r = await api.post<AuthResponse>("/auth/signup", input);
-      setToken(r.token);
-      setUser(r.user);
-      return r.user;
-    },
-    [],
-  );
+  const signup = useCallback(async (input: SignupInput) => {
+    const r = await api.post<AuthResponse>("/auth/signup", input);
+    setToken(r.token);
+    setUser(r.user);
+    return r.user;
+  }, []);
 
   const updateProfile = useCallback(async (patch: Partial<User>) => {
     const r = await api.patch<{ user: User }>("/auth/me", patch);

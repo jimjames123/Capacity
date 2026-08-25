@@ -39,12 +39,14 @@ export function Badge({
   tone = "neutral",
 }: {
   children: ReactNode;
-  tone?: "neutral" | "teal" | "green";
+  tone?: "neutral" | "teal" | "green" | "rust" | "amber";
 }) {
   const tones = {
     neutral: "bg-[#EEF2F2] text-muted border-line",
     teal: "bg-white text-ink border-teal-soft",
     green: "bg-green-soft text-green border-green-line",
+    rust: "bg-rust-soft text-rust border-rust-line",
+    amber: "bg-amber-soft text-amber border-amber-line",
   };
   return (
     <span
