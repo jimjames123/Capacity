@@ -2,23 +2,34 @@ import type { ReactNode } from "react";
 import { STATUS_META } from "../lib/format";
 import type { EntryStatus } from "../lib/types";
 
-/** The CapacitySpot wordmark / logo lockup. */
+/** The Capacity Lane wordmark / logo lockup. */
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="grid h-9 w-9 place-items-center rounded-[9px] bg-ink font-serif text-[15px] font-bold text-white">
-        CS
-      </div>
+      <BrandMark className="h-9 w-9 rounded-[9px]" />
       {!compact && (
         <div className="leading-tight">
           <div className="font-serif text-[17px] font-semibold text-ink">
-            CAPACITYSPOT
+            CAPACITY LANE
           </div>
           <div className="text-[10.5px] tracking-[0.4px] text-muted">
-            CPD RAIL
+            CPD PLATFORM
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The "CL" monogram from the Capacity Lane logo — a dark tile split with a
+ * teal footer, echoing the road/steps mark. Sizing/rounding via className.
+ */
+export function BrandMark({ className = "h-9 w-9 rounded-[9px]", text = "text-[14px]" }: { className?: string; text?: string }) {
+  return (
+    <div className={`relative grid place-items-center overflow-hidden bg-ink ${className}`}>
+      <span className={`relative z-10 font-serif font-bold leading-none tracking-tight text-white ${text}`}>CL</span>
+      <span className="absolute inset-x-0 bottom-0 h-[28%] bg-teal" />
     </div>
   );
 }

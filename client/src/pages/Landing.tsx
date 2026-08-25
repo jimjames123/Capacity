@@ -234,7 +234,7 @@ export default function Landing() {
       {/* How it works */}
       <section id="how" className="scroll-mt-20">
         <div className="mx-auto max-w-6xl px-6 py-16">
-          <h2 className="font-serif text-3xl font-bold text-ink">How CPD Rail works</h2>
+          <h2 className="font-serif text-3xl font-bold text-ink">How Capacity Lane works</h2>
           <div className="mt-8 grid gap-6 md:grid-cols-3">
             {STEPS.map((st) => (
               <div key={st.n} className="relative rounded-2xl border border-line bg-white p-6 shadow-card">

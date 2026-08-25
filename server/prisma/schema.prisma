@@ -1,4 +1,4 @@
-// CapacitySpot — CPD Rail data model
+// Capacity Lane — CPD platform data model
 // SQLite (via Prisma). SQLite has no native enums, so status/role/format
 // fields are strings with the allowed values documented alongside them.
 

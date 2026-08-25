@@ -83,7 +83,7 @@ function FullScreenLoader() {
   return (
     <div className="grid min-h-screen place-items-center bg-surface">
       <div className="animate-pulse font-serif text-lg text-muted">
-        Loading CapacitySpot…
+        Loading Capacity Lane…
       </div>
     </div>
   );

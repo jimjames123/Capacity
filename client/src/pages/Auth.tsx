@@ -77,12 +77,13 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
       <div className="relative hidden flex-col justify-between bg-ink p-10 text-white lg:flex">
         <Link to="/">
           <div className="flex items-center gap-2.5">
-            <div className="grid h-9 w-9 place-items-center rounded-[9px] bg-white font-serif text-[15px] font-bold text-ink">
-              CS
+            <div className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-[9px] bg-white font-serif text-[15px] font-bold text-ink">
+              <span className="relative z-10">CL</span>
+              <span className="absolute inset-x-0 bottom-0 h-[28%] bg-teal" />
             </div>
             <div className="leading-tight">
-              <div className="font-serif text-[17px] font-semibold">CAPACITYSPOT</div>
-              <div className="text-[10.5px] tracking-[0.4px] text-[#9FB2B2]">CPD RAIL</div>
+              <div className="font-serif text-[17px] font-semibold">CAPACITY LANE</div>
+              <div className="text-[10.5px] tracking-[0.4px] text-[#9FB2B2]">CPD PLATFORM</div>
             </div>
           </div>
         </Link>
@@ -132,7 +133,7 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
           </h1>
           <p className="mt-1.5 text-sm text-muted">
             {isSignup
-              ? "Choose how you'll use CapacitySpot to get started."
+              ? "Choose how you'll use Capacity Lane to get started."
               : "Log in to your CPD dashboard."}
           </p>
 
@@ -282,7 +283,7 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
           )}
 
           <p className="mt-6 text-center text-sm text-muted">
-            {isSignup ? "Already have an account? " : "New to CapacitySpot? "}
+            {isSignup ? "Already have an account? " : "New to Capacity Lane? "}
             <Link
               to={isSignup ? "/signin" : "/signup"}
               className="font-semibold text-teal hover:underline"

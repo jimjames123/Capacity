@@ -33,5 +33,5 @@ app.use((_req, res) => {
 
 app.listen(env.port, () => {
   // eslint-disable-next-line no-console
-  console.log(`CapacitySpot API listening on http://localhost:${env.port}`);
+  console.log(`Capacity Lane API listening on http://localhost:${env.port}`);
 });

@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // CapacitySpot palette (from the product design)
+        // Capacity Lane palette (from the product design)
         ink: "#263238",
         muted: "#546A6E",
         faint: "#8A9A9A",

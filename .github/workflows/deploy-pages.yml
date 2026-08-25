@@ -1,6 +1,6 @@
 name: Deploy to GitHub Pages
 
-# Builds the CapacitySpot client as a static site (in-browser data layer,
+# Builds the Capacity Lane client as a static site (in-browser data layer,
 # no backend) and publishes it to GitHub Pages.
 
 on:

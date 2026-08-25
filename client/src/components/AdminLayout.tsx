@@ -24,11 +24,12 @@ export function AdminLayout() {
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-[232px] flex-shrink-0 flex-col bg-ink p-4 text-white md:flex">
         <div className="flex items-center gap-2.5 px-1.5 py-1">
-          <div className="grid h-[34px] w-[34px] place-items-center rounded-lg bg-white/[0.14] font-serif text-[14px] font-bold">
-            CS
+          <div className="relative grid h-[34px] w-[34px] place-items-center overflow-hidden rounded-lg bg-white/[0.14] font-serif text-[14px] font-bold">
+            <span className="relative z-10">CL</span>
+            <span className="absolute inset-x-0 bottom-0 h-[28%] bg-teal" />
           </div>
           <div className="leading-tight">
-            <div className="whitespace-nowrap font-serif text-[17px] font-semibold">CPD Rail</div>
+            <div className="whitespace-nowrap font-serif text-[17px] font-semibold">Capacity Lane</div>
             <div className="text-[11px] text-[#D6E4E3]">Registrar</div>
           </div>
         </div>
@@ -70,9 +71,9 @@ export function AdminLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 border-b border-line bg-ink text-white md:hidden">
           <div className="flex h-[58px] items-center gap-3 px-4">
-            <div className="grid h-8 w-8 place-items-center rounded-lg bg-white/[0.14] font-serif text-[13px] font-bold">CS</div>
+            <div className="relative grid h-8 w-8 place-items-center overflow-hidden rounded-lg bg-white/[0.14] font-serif text-[13px] font-bold"><span className="relative z-10">CL</span><span className="absolute inset-x-0 bottom-0 h-[28%] bg-teal" /></div>
             <div className="mr-auto leading-tight">
-              <div className="font-serif text-[15px] font-semibold">CPD Rail</div>
+              <div className="font-serif text-[15px] font-semibold">Capacity Lane</div>
               <div className="text-[10px] text-[#D6E4E3]">Registrar</div>
             </div>
             <button

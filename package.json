@@ -2,7 +2,7 @@
   "name": "capacityspot",
   "version": "0.1.0",
   "private": true,
-  "description": "CapacitySpot — Uganda's public CPD platform (CPD Rail)",
+  "description": "Capacity Lane — Uganda's public CPD platform",
   "scripts": {
     "dev": "concurrently -k -n api,web -c blue,green \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
     "build": "npm --prefix server run build && npm --prefix client run build",

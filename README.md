@@ -1,6 +1,6 @@
-# CapacitySpot — CPD Rail
+# Capacity Lane — CPD Platform
 
-CapacitySpot is Uganda's public **Continuing Professional Development (CPD)**
+Capacity Lane is Uganda's public **Continuing Professional Development (CPD)**
 platform. Professionals track their CPD points across cycles, discover
 accredited courses from verified providers, and share a verified compliance
 record with whichever professional body they belong to.
