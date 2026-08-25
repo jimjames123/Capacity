@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import { EmptyState } from "../components/ui";
+import { BrandIcon, EmptyState } from "../components/ui";
 import { formatDate } from "../lib/format";
 import type { ComplianceRecord } from "../lib/types";
 
@@ -63,7 +63,7 @@ export default function Record() {
           <div id="certificate" className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">
             <div className="flex items-center justify-between border-b border-line bg-[#FCFDFD] px-8 py-5">
               <div className="flex items-center gap-2.5">
-                <div className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-[9px] bg-ink font-serif text-[15px] font-bold text-white"><span className="relative z-10">CL</span><span className="absolute inset-x-0 bottom-0 h-[28%] bg-teal" /></div>
+                <BrandIcon className="h-10 w-auto" />
                 <div className="leading-tight">
                   <div className="font-serif text-[15px] font-semibold text-ink">CAPACITY LANE · CPD Record</div>
                   <div className="text-[10.5px] text-muted">Verified continuing professional development</div>

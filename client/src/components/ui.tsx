@@ -10,11 +10,19 @@ export function BrandLogo({ className = "h-12 w-auto" }: { className?: string })
   return <img src={brandLogoSrc} alt="Capacity Lane" className={className} />;
 }
 
-/** The Capacity Lane wordmark / logo lockup. */
+/** Path to the icon-only logo mark (no wordmark), base-path aware. */
+export const brandIconSrc = `${import.meta.env.BASE_URL}logo-icon.png`;
+
+/** The Capacity Lane icon mark on its own (no wordmark). */
+export function BrandIcon({ className = "h-9 w-auto" }: { className?: string }) {
+  return <img src={brandIconSrc} alt="Capacity Lane" className={className} />;
+}
+
+/** The Capacity Lane logo lockup (icon + wordmark), for light surfaces. */
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <BrandMark className="h-9 w-9 rounded-[9px]" />
+      <BrandIcon className="h-10 w-auto" />
       {!compact && (
         <div className="leading-tight">
           <div className="font-serif text-[17px] font-semibold text-ink">
@@ -25,19 +33,6 @@ export function Logo({ compact = false }: { compact?: boolean }) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-/**
- * The "CL" monogram from the Capacity Lane logo — a dark tile split with a
- * teal footer, echoing the road/steps mark. Sizing/rounding via className.
- */
-export function BrandMark({ className = "h-9 w-9 rounded-[9px]", text = "text-[14px]" }: { className?: string; text?: string }) {
-  return (
-    <div className={`relative grid place-items-center overflow-hidden bg-ink ${className}`}>
-      <span className={`relative z-10 font-serif font-bold leading-none tracking-tight text-white ${text}`}>CL</span>
-      <span className="absolute inset-x-0 bottom-0 h-[28%] bg-teal" />
     </div>
   );
 }
