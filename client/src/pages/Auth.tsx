@@ -164,7 +164,7 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
               <div>
                 <label className="field-label">Consultant type</label>
                 <div className="mt-1.5 inline-flex w-full rounded-xl border border-line bg-white p-1">
-                  {([["individual", "Individual consultant"], ["institution", "Institution consultant"]] as const).map(([v, label]) => (
+                  {([["individual", "Individual Consultant"], ["institution", "Institutional Consultant"]] as const).map(([v, label]) => (
                     <button
                       key={v}
                       type="button"
