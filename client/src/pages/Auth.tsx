@@ -76,7 +76,7 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
       {/* Left brand panel */}
       <div className="relative hidden flex-col justify-between bg-ink p-10 text-white lg:flex">
         <Link to="/" className="self-start rounded-2xl bg-white p-4 shadow-sm">
-          <BrandLogo className="h-28 w-auto" />
+          <BrandLogo className="h-40 w-auto" />
         </Link>
         <div>
           <h2 className="max-w-md font-serif text-3xl font-bold leading-tight">
@@ -96,7 +96,7 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
       <div className="flex flex-col items-center justify-center bg-surface px-6 py-12">
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
-            <Link to="/"><BrandLogo className="h-12 w-auto" /></Link>
+            <Link to="/"><BrandLogo className="h-16 w-auto" /></Link>
           </div>
 
           {/* Tabs */}

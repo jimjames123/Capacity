@@ -77,8 +77,8 @@ export default function Landing() {
     <div className="bg-surface">
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-line bg-white/90 backdrop-blur">
-        <div className="mx-auto flex h-[66px] max-w-6xl items-center gap-4 px-6">
-          <Link to="/"><BrandLogo className="h-14 w-auto" /></Link>
+        <div className="mx-auto flex h-24 max-w-6xl items-center gap-4 px-6">
+          <Link to="/"><BrandLogo className="h-20 w-auto" /></Link>
           <nav className="ml-auto mr-2 hidden items-center gap-1 md:flex">
             <a href="#courses" className="rounded-lg px-3 py-2 text-sm font-medium text-ink hover:bg-[#EEF2F2]">Courses</a>
             <a href="#audiences" className="rounded-lg px-3 py-2 text-sm font-medium text-ink hover:bg-[#EEF2F2]">For you</a>
@@ -273,7 +273,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="border-t border-line bg-white">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-8 sm:flex-row">
-          <BrandLogo className="h-16 w-auto" />
+          <BrandLogo className="h-20 w-auto" />
           <div className="text-[12.5px] text-muted">
             Kampala, Uganda · Pilot build for validation review
           </div>
