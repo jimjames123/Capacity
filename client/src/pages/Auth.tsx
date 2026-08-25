@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth, type AccountType } from "../lib/auth";
-import { Logo } from "../components/ui";
+import { BrandLogo } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { homePathForUser } from "../lib/nav";
 
@@ -75,17 +75,8 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* Left brand panel */}
       <div className="relative hidden flex-col justify-between bg-ink p-10 text-white lg:flex">
-        <Link to="/">
-          <div className="flex items-center gap-2.5">
-            <div className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-[9px] bg-white font-serif text-[15px] font-bold text-ink">
-              <span className="relative z-10">CL</span>
-              <span className="absolute inset-x-0 bottom-0 h-[28%] bg-teal" />
-            </div>
-            <div className="leading-tight">
-              <div className="font-serif text-[17px] font-semibold">CAPACITY LANE</div>
-              <div className="text-[10.5px] tracking-[0.4px] text-[#9FB2B2]">CPD PLATFORM</div>
-            </div>
-          </div>
+        <Link to="/" className="self-start rounded-2xl bg-white p-4 shadow-sm">
+          <BrandLogo className="h-28 w-auto" />
         </Link>
         <div>
           <h2 className="max-w-md font-serif text-3xl font-bold leading-tight">
@@ -105,7 +96,7 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
       <div className="flex flex-col items-center justify-center bg-surface px-6 py-12">
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
-            <Link to="/"><Logo /></Link>
+            <Link to="/"><BrandLogo className="h-12 w-auto" /></Link>
           </div>
 
           {/* Tabs */}

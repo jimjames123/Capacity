@@ -2,6 +2,14 @@ import type { ReactNode } from "react";
 import { STATUS_META } from "../lib/format";
 import type { EntryStatus } from "../lib/types";
 
+/** Path to the Capacity Lane logo, base-path aware (dev vs. GitHub Pages). */
+export const brandLogoSrc = `${import.meta.env.BASE_URL}logo.png`;
+
+/** The full Capacity Lane logo image (icon + wordmark). */
+export function BrandLogo({ className = "h-12 w-auto" }: { className?: string }) {
+  return <img src={brandLogoSrc} alt="Capacity Lane" className={className} />;
+}
+
 /** The Capacity Lane wordmark / logo lockup. */
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (

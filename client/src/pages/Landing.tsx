@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { homePathForUser } from "../lib/nav";
-import { Badge, Logo, ProgressRing } from "../components/ui";
+import { Badge, BrandLogo, ProgressRing } from "../components/ui";
 import { FORMAT_META, pointsLabel } from "../lib/format";
 import type { Course } from "../lib/types";
 
@@ -78,7 +78,7 @@ export default function Landing() {
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-line bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-[66px] max-w-6xl items-center gap-4 px-6">
-          <Logo />
+          <Link to="/"><BrandLogo className="h-12 w-auto" /></Link>
           <nav className="ml-auto mr-2 hidden items-center gap-1 md:flex">
             <a href="#courses" className="rounded-lg px-3 py-2 text-sm font-medium text-ink hover:bg-[#EEF2F2]">Courses</a>
             <a href="#audiences" className="rounded-lg px-3 py-2 text-sm font-medium text-ink hover:bg-[#EEF2F2]">For you</a>
@@ -273,7 +273,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="border-t border-line bg-white">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-8 sm:flex-row">
-          <Logo />
+          <BrandLogo className="h-14 w-auto" />
           <div className="text-[12.5px] text-muted">
             Kampala, Uganda · Pilot build for validation review
           </div>
