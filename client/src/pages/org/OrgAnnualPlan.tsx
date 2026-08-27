@@ -14,6 +14,17 @@ const STATUS_TONE: Record<string, "green" | "amber" | "neutral"> = {
   Planned: "neutral",
 };
 
+/** Parse a session's display date (e.g. "18 Mar 2026") into a Date. */
+function parseDate(s: string): Date | null {
+  const d = new Date(s);
+  return isNaN(+d) ? null : d;
+}
+
+/** Format a Date as YYYY-MM-DD (to compare against a date input). */
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export default function OrgAnnualPlan() {
   const [sessions, setSessions] = useState<PlannedSession[] | null>(null);
   const [staff, setStaff] = useState<Staff[]>([]);
@@ -23,7 +34,9 @@ export default function OrgAnnualPlan() {
   const [showScheduler, setShowScheduler] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [dateF, setDateF] = useState("");
   const [monthF, setMonthF] = useState("All");
+  const [yearF, setYearF] = useState("All");
   const [statusF, setStatusF] = useState("All");
 
   function load() {
@@ -35,36 +48,48 @@ export default function OrgAnnualPlan() {
     api.get<{ departments: OrgDepartment[] }>("/organization/departments").then((r) => setDepartments(r.departments)).catch(() => {});
   }, []);
 
-  const year = useMemo(() => {
-    const d = sessions?.map((s) => Number(s.date.match(/\d{4}/)?.[0])).find((n) => n) ;
-    return d || new Date().getFullYear();
-  }, [sessions]);
-
   const monthsPresent = useMemo(() => {
     const set = new Set((sessions ?? []).map((s) => s.month).filter(Boolean));
     return MONTHS.filter((m) => set.has(m));
   }, [sessions]);
 
+  const yearsPresent = useMemo(() => {
+    const set = new Set<number>();
+    for (const s of sessions ?? []) {
+      const d = parseDate(s.date);
+      if (d) set.add(d.getFullYear());
+    }
+    return Array.from(set).sort((a, b) => a - b);
+  }, [sessions]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (sessions ?? []).filter((s) => {
+      const d = parseDate(s.date);
+      if (dateF) {
+        if (!d || isoDate(d) !== dateF) return false;
+      }
+      if (yearF !== "All" && (!d || String(d.getFullYear()) !== yearF)) return false;
       if (monthF !== "All" && s.month !== monthF) return false;
       if (statusF !== "All" && s.status !== statusF) return false;
       if (q && !`${s.course} ${s.provider} ${s.dept} ${s.sector}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [sessions, search, monthF, statusF]);
+  }, [sessions, search, dateF, monthF, yearF, statusF]);
 
   const grouped = useMemo(() => {
-    const map = new Map<number, PlannedSession[]>();
+    const map = new Map<number, { yr: number; mi: number; items: PlannedSession[] }>();
     for (const s of filtered) {
+      const d = parseDate(s.date);
       const mi = MONTHS.indexOf(s.month);
-      const key = mi === -1 ? 99 : mi;
-      const list = map.get(key) ?? [];
-      list.push(s);
-      map.set(key, list);
+      const idx = mi === -1 ? 12 : mi;
+      const yr = d ? d.getFullYear() : 0;
+      const key = yr * 100 + idx;
+      const g = map.get(key) ?? { yr, mi: idx, items: [] };
+      g.items.push(s);
+      map.set(key, g);
     }
-    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]);
+    return Array.from(map.values()).sort((a, b) => a.yr - b.yr || a.mi - b.mi);
   }, [filtered]);
 
   async function advance(s: PlannedSession) {
@@ -90,10 +115,10 @@ export default function OrgAnnualPlan() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-serif text-3xl font-bold text-ink">Annual training calendar · {year}</h1>
-          <p className="mt-2 text-muted">All planned training for the year, with delivery details, cost and allocated staff.</p>
+          <h1 className="font-serif text-3xl font-bold text-ink">Annual training calendar</h1>
+          <p className="mt-2 text-muted">Plan training across the year — including future dates — with delivery details, cost and allocated staff.</p>
         </div>
-        <button onClick={() => setShowScheduler(true)} className="btn-primary">+ Schedule session</button>
+        <button onClick={() => setShowScheduler(true)} className="btn-primary">+ Schedule training</button>
       </div>
 
       {!sessions ? (
@@ -102,26 +127,53 @@ export default function OrgAnnualPlan() {
         <EmptyState title="No sessions planned yet" hint="Schedule your first training session to build the annual plan." />
       ) : (
         <>
-          <div className="card grid gap-3 p-4 sm:grid-cols-[1fr_auto_auto]">
+          <div className="card space-y-3 p-4">
             <input className="field" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search a training, provider or department…" />
-            <select className="field sm:w-44" value={monthF} onChange={(e) => setMonthF(e.target.value)}>
-              <option value="All">All months</option>
-              {monthsPresent.map((m) => <option key={m} value={m}>{MONTH_FULL[MONTHS.indexOf(m)]} {year}</option>)}
-            </select>
-            <select className="field sm:w-40" value={statusF} onChange={(e) => setStatusF(e.target.value)}>
-              {["All", "Planned", "In progress", "Completed"].map((s) => <option key={s} value={s}>{s === "All" ? "All statuses" : s}</option>)}
-            </select>
+            <div className="grid gap-3 sm:grid-cols-4">
+              <label className="block">
+                <span className="field-label">On date</span>
+                <input type="date" className="field" value={dateF} onChange={(e) => setDateF(e.target.value)} />
+              </label>
+              <label className="block">
+                <span className="field-label">Month</span>
+                <select className="field" value={monthF} onChange={(e) => setMonthF(e.target.value)}>
+                  <option value="All">All months</option>
+                  {monthsPresent.map((m) => <option key={m} value={m}>{MONTH_FULL[MONTHS.indexOf(m)]}</option>)}
+                </select>
+              </label>
+              <label className="block">
+                <span className="field-label">Year</span>
+                <select className="field" value={yearF} onChange={(e) => setYearF(e.target.value)}>
+                  <option value="All">All years</option>
+                  {yearsPresent.map((y) => <option key={y} value={String(y)}>{y}</option>)}
+                </select>
+              </label>
+              <label className="block">
+                <span className="field-label">Status</span>
+                <select className="field" value={statusF} onChange={(e) => setStatusF(e.target.value)}>
+                  {["All", "Planned", "In progress", "Completed"].map((s) => <option key={s} value={s}>{s === "All" ? "All statuses" : s}</option>)}
+                </select>
+              </label>
+            </div>
+            {(dateF || monthF !== "All" || yearF !== "All" || statusF !== "All" || search) && (
+              <button
+                onClick={() => { setSearch(""); setDateF(""); setMonthF("All"); setYearF("All"); setStatusF("All"); }}
+                className="text-[13px] font-semibold text-teal hover:underline"
+              >
+                Clear filters
+              </button>
+            )}
           </div>
 
           {filtered.length === 0 ? (
             <EmptyState title="No sessions match these filters" hint="Try a different month, status or search term." />
           ) : (
           <div className="space-y-8">
-          {grouped.map(([mi, items]) => (
-            <div key={mi}>
-              <div className="label-caps mb-3 text-muted">{mi === 99 ? "Unscheduled" : `${MONTH_FULL[mi]} ${year}`}</div>
+          {grouped.map((g) => (
+            <div key={`${g.yr}-${g.mi}`}>
+              <div className="label-caps mb-3 text-muted">{g.mi === 12 ? "Unscheduled" : `${MONTH_FULL[g.mi]} ${g.yr || ""}`}</div>
               <div className="space-y-4">
-                {items.map((s) => (
+                {g.items.map((s) => (
                   <SessionCard key={s.id} s={s} busy={busy === s.id} onAllocate={() => setAllocFor(s)} onAdvance={() => advance(s)} />
                 ))}
               </div>
