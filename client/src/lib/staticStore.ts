@@ -43,6 +43,18 @@ interface DB {
   bookings: DbBooking[];
   catalog: DbCatalog[];
   plannedSessions: DbPlanned[];
+  referrals?: DbReferral[];
+}
+
+interface DbReferral {
+  id: string;
+  organizationId: string;
+  catalogId: string;
+  courseTitle: string;
+  peerName: string;
+  peerEmail: string;
+  message: string;
+  createdAt: string;
 }
 
 /** Departments and their sectors, shared across catalog filters and scheduling. */
@@ -1530,6 +1542,19 @@ export async function handle(method: string, path: string, body: unknown): Promi
     db.bookings.push({ id: uid("bk_"), organizationId: oid, title: c.title, providerName: c.consultant, category: c.dept, staffCount: taken, date: when, cost: c.fee, paid: false, status: "SCHEDULED", attendance: null, certificateIssued: false, outcome: null, createdAt: new Date().toISOString() });
     save(db);
     return { ok: true, booked: taken, spotsLeft: Math.max(0, c.capacity - c.booked) };
+  }
+
+  if (method === "POST" && /^\/organization\/catalog\/[^/]+\/refer$/.test(rawPath)) {
+    const oid = requireOrg(db);
+    const id = rawPath.split("/")[3];
+    const c = db.catalog.find((x) => x.id === id);
+    if (!c) throw { status: 404, error: "Course not found" };
+    if (!b.peerEmail || !String(b.peerEmail).includes("@")) throw { status: 400, error: "A valid peer email is required" };
+    const list = (db.referrals ??= []);
+    const ref: DbReferral = { id: uid("ref_"), organizationId: oid, catalogId: id, courseTitle: c.title, peerName: b.peerName ?? "", peerEmail: b.peerEmail, message: b.message ?? "", createdAt: new Date().toISOString() };
+    list.push(ref);
+    save(db);
+    return { ok: true, id: ref.id };
   }
 
   // --- Organization: annual plan (planned sessions) ---

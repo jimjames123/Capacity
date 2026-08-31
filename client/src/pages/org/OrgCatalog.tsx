@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../../lib/api";
 import { Badge, EmptyState } from "../../components/ui";
+import { Modal } from "../../components/Modal";
+import { Field, FormError } from "../../components/Field";
 import { pointsLabel } from "../../lib/format";
 import type { CatalogSession, OrgDepartment } from "../../lib/types";
 
@@ -15,6 +17,7 @@ export default function OrgCatalog() {
   const [sector, setSector] = useState("All sectors");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rowMsg, setRowMsg] = useState<Record<string, string>>({});
+  const [referring, setReferring] = useState<Row | null>(null);
 
   function load() {
     api.get<{ sessions: Row[] }>("/organization/catalog").then((r) => setRows(r.sessions)).catch(() => setError("Could not load the catalog"));
@@ -118,13 +121,93 @@ export default function OrgCatalog() {
                 <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
                   <button onClick={() => book(r, 1)} disabled={full || busyId === r.id} className="btn-primary px-4 py-2 disabled:opacity-50">Book an employee</button>
                   <button onClick={() => book(r, 5)} disabled={full || r.spotsLeft < 5 || busyId === r.id} className="btn-ghost px-4 py-2 disabled:opacity-50">Book a group (5)</button>
-                  {rowMsg[r.id] && <span className="text-[12.5px] font-medium text-green">{rowMsg[r.id]}</span>}
+                  <button onClick={() => setReferring(r)} className="ml-auto rounded-lg px-3 py-2 text-[13px] font-semibold text-teal hover:bg-[#EDF1F1]">↗ Refer a peer</button>
+                  {rowMsg[r.id] && <span className="w-full text-[12.5px] font-medium text-green sm:w-auto">{rowMsg[r.id]}</span>}
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
+      {referring && <ReferModal row={referring} onClose={() => setReferring(null)} />}
     </div>
+  );
+}
+
+function ReferModal({ row, onClose }: { row: Row; onClose: () => void }) {
+  const [peerName, setPeerName] = useState("");
+  const [peerEmail, setPeerEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const shareUrl = `${window.location.origin}${import.meta.env.BASE_URL}`;
+  const subject = `A course you might find useful: ${row.title}`;
+  const body = `Hi${peerName ? " " + peerName : ""},\n\nI thought this course could be useful for your CPD:\n\n${row.title} — ${row.consultant}\n${row.dept} · ${row.sector} · ${pointsLabel(row.points)} · ${row.fee}\n${row.format} · ${row.date} · ${row.location}\n${message ? "\n" + message + "\n" : ""}\nYou can explore it on Capacity Lane: ${shareUrl}`;
+  const mailto = `mailto:${encodeURIComponent(peerEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.post(`/organization/catalog/${row.id}/refer`, { peerName, peerEmail, message });
+      setSent(true);
+    } catch (e2) {
+      setErr(e2 instanceof ApiError ? e2.message : "Could not send the referral");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(`${row.title} — ${row.consultant} · ${shareUrl}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title={sent ? "Referral shared" : "Refer a peer"}>
+      {sent ? (
+        <div className="space-y-4">
+          <p className="text-sm text-muted">
+            We've noted your referral of <span className="font-semibold text-ink">{row.title}</span>
+            {peerEmail ? <> to <span className="font-semibold text-ink">{peerEmail}</span></> : null}. Send it on directly:
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <a href={mailto} className="btn-primary px-4 py-2">Open email</a>
+            <button onClick={copyLink} className="btn-ghost px-4 py-2">{copied ? "Copied ✓" : "Copy course link"}</button>
+          </div>
+          <div className="flex justify-end pt-1">
+            <button onClick={onClose} className="btn-ghost">Done</button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="space-y-4">
+          <div className="rounded-xl bg-[#F3F6F6] p-3.5">
+            <div className="font-serif text-[15px] font-semibold text-ink">{row.title}</div>
+            <div className="text-[12.5px] text-muted">{row.consultant} · {pointsLabel(row.points)} · {row.fee}</div>
+          </div>
+          <Field label="Peer's name" value={peerName} onChange={setPeerName} placeholder="Jane Doe" optional />
+          <Field label="Peer's email" type="email" value={peerEmail} onChange={setPeerEmail} placeholder="jane@example.com" required />
+          <label className="block">
+            <span className="field-label">Personal note <span className="font-normal text-muted">(optional)</span></span>
+            <textarea className="field min-h-[80px] resize-y" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Thought this would be great for your CPD…" />
+          </label>
+          <FormError>{err}</FormError>
+          <div className="flex justify-end gap-3 pt-1">
+            <button type="button" onClick={onClose} className="btn-ghost">Cancel</button>
+            <button type="submit" disabled={busy} className="btn-primary">{busy ? "Sending…" : "Refer course"}</button>
+          </div>
+        </form>
+      )}
+    </Modal>
   );
 }

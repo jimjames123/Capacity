@@ -6,7 +6,7 @@ const NAV = [
   { to: "/org", label: "Dashboard", end: true },
   { to: "/org/staff", label: "Staff", end: false },
   { to: "/org/annual-plan", label: "Annual Training Plan", end: false },
-  { to: "/org/catalog", label: "Catalog", end: false },
+  { to: "/org/catalog", label: "Course Catalog", end: false },
   { to: "/org/inhouse", label: "In-house", end: false },
   { to: "/org/consultants", label: "Consultants", end: false },
   { to: "/org/bookings", label: "Bookings", end: false },

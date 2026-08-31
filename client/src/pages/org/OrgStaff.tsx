@@ -39,6 +39,19 @@ export default function OrgStaff() {
     );
   }, [staff, q]);
 
+  const grouped = useMemo(() => {
+    const map = new Map<string, Staff[]>();
+    for (const s of filtered) {
+      const dept = s.profession?.trim() || "Unassigned";
+      const arr = map.get(dept) ?? [];
+      arr.push(s);
+      map.set(dept, arr);
+    }
+    return Array.from(map.entries())
+      .map(([dept, list]) => [dept, list.slice().sort((a, b) => a.name.localeCompare(b.name))] as const)
+      .sort((a, b) => (a[0] === "Unassigned" ? 1 : b[0] === "Unassigned" ? -1 : a[0].localeCompare(b[0])));
+  }, [filtered]);
+
   if (error) return <EmptyState title={error} />;
   if (!staff) return <div className="h-64 animate-pulse rounded-2xl bg-line" />;
 
@@ -61,22 +74,32 @@ export default function OrgStaff() {
       ) : filtered.length === 0 ? (
         <EmptyState title="No staff match your search" hint="Try a different name, role or profession." />
       ) : (
-        <div className="card divide-y divide-line">
-          {filtered.map((s) => (
-            <div key={s.id} className="flex flex-wrap items-center gap-3 p-4">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#EDF1F1] font-semibold text-muted">
-                {initials(s.name)}
+        <div className="space-y-6">
+          {grouped.map(([dept, list]) => (
+            <div key={dept}>
+              <div className="mb-2 flex items-center justify-between px-1">
+                <div className="label-caps text-muted">{dept}</div>
+                <div className="text-[12px] font-semibold text-muted">{list.length} {list.length === 1 ? "person" : "people"}</div>
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-medium text-ink">{s.name}</div>
-                <div className="text-[12.5px] text-muted">
-                  {s.jobTitle ?? "—"}{s.profession ? ` · ${s.profession}` : ""}{s.membershipNo ? ` · ${s.membershipNo}` : ""}
-                </div>
-              </div>
-              {s.email && <div className="hidden text-[13px] text-muted sm:block">{s.email}</div>}
-              <div className="flex gap-1">
-                <button onClick={() => setEditing(s)} className="rounded-lg px-2.5 py-1 text-[13px] font-semibold text-teal hover:bg-[#EDF1F1]">Edit</button>
-                <button onClick={() => setDeleting(s)} className="rounded-lg px-2.5 py-1 text-[13px] font-semibold text-rust hover:bg-rust-soft">Remove</button>
+              <div className="card divide-y divide-line">
+                {list.map((s) => (
+                  <div key={s.id} className="flex flex-wrap items-center gap-3 p-4">
+                    <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#EDF1F1] font-semibold text-muted">
+                      {initials(s.name)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium text-ink">{s.name}</div>
+                      <div className="text-[12.5px] text-muted">
+                        {s.jobTitle ?? "—"}{s.membershipNo ? ` · ${s.membershipNo}` : ""}
+                      </div>
+                    </div>
+                    {s.email && <div className="hidden text-[13px] text-muted sm:block">{s.email}</div>}
+                    <div className="flex gap-1">
+                      <button onClick={() => setEditing(s)} className="rounded-lg px-2.5 py-1 text-[13px] font-semibold text-teal hover:bg-[#EDF1F1]">Edit</button>
+                      <button onClick={() => setDeleting(s)} className="rounded-lg px-2.5 py-1 text-[13px] font-semibold text-rust hover:bg-rust-soft">Remove</button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
