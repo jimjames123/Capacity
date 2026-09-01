@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
 import { EmptyState } from "../../components/ui";
 import { formatDate } from "../../lib/format";
-import type { Bid, ProviderCourse, TenderBoardItem } from "../../lib/types";
+import type { Bid, ProviderCourse, TenderBoardItem, TenderRecommendation } from "../../lib/types";
 
 interface Notice {
   icon: string;
@@ -23,8 +23,9 @@ export default function ProviderNotifications() {
       api.get<{ bids: Bid[] }>("/provider/bids"),
       api.get<{ courses: ProviderCourse[] }>("/provider/courses"),
       api.get<{ tenders: TenderBoardItem[] }>("/provider/tenders"),
+      api.get<{ recommendations: TenderRecommendation[] }>("/provider/recommendations").catch(() => ({ recommendations: [] })),
     ])
-      .then(([b, c, t]) => setNotices(build(b.bids, c.courses, t.tenders)))
+      .then(([b, c, t, r]) => setNotices(build(b.bids, c.courses, t.tenders, r.recommendations)))
       .catch(() => setError("Could not load notifications"));
   }, []);
 
@@ -66,8 +67,12 @@ export default function ProviderNotifications() {
   );
 }
 
-function build(bids: Bid[], courses: ProviderCourse[], tenders: TenderBoardItem[]): Notice[] {
+function build(bids: Bid[], courses: ProviderCourse[], tenders: TenderBoardItem[], recs: TenderRecommendation[] = []): Notice[] {
   const out: Notice[] = [];
+
+  for (const r of recs) {
+    out.push({ icon: "🤝", tone: "green", title: `${r.fromName} recommended a tender to you`, meta: `${r.tender.title} · ${r.tender.organizationName}${r.note ? ` — “${r.note}”` : ""}`, to: `/provider/tenders/${r.tender.id}`, ts: +new Date(r.createdAt) + 5 });
+  }
 
   for (const b of bids) {
     if (b.status === "ACCEPTED") out.push({ icon: "🎉", tone: "green", title: `Your bid was accepted`, meta: `${b.tender.title} · ${b.tender.organizationName}`, to: `/provider/tenders/${b.tender.id}`, ts: +new Date(b.createdAt) + 3 });

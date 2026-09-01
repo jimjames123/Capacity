@@ -23,7 +23,7 @@ import type {
 } from "./types";
 
 // Bump when the seed shape changes so returning visitors get fresh demo data.
-const LS_KEY = "cs_static_db_v7";
+const LS_KEY = "cs_static_db_v8";
 
 interface StoredUser extends User {
   password: string;
@@ -44,6 +44,16 @@ interface DB {
   catalog: DbCatalog[];
   plannedSessions: DbPlanned[];
   referrals?: DbReferral[];
+  recommendations?: DbRecommendation[];
+}
+
+interface DbRecommendation {
+  id: string;
+  tenderId: string;
+  fromProviderId: string;
+  toProviderId: string;
+  note: string;
+  createdAt: string;
 }
 
 interface DbReferral {
@@ -155,12 +165,12 @@ interface DbBooking {
 }
 
 const PROVIDER_SEED: Provider[] = [
-  { id: "p1", name: "Makerere Executive Institute", initials: "ME", type: "Institution", verified: true, rating: 4.9, meta: "Kampala · 22 courses", bio: "The executive education arm of Makerere University, delivering accredited professional programmes across disciplines since 2009." },
-  { id: "p2", name: "Deloitte Uganda Academy", initials: "DA", type: "Training company", verified: true, rating: 4.8, meta: "Kampala · 15 courses", bio: "Professional training from Deloitte's East Africa practice, covering finance, risk, and governance." },
-  { id: "p3", name: "Uganda Institute of Applied Professionals", initials: "UI", type: "Institution", verified: true, rating: 4.7, meta: "Jinja · 9 courses", bio: "Hands-on technical and engineering CPD delivered by practising professionals." },
-  { id: "p4", name: "BrandHouse East Africa", initials: "BH", type: "Training company", verified: true, rating: 4.6, meta: "Kampala · 7 courses", bio: "Marketing, communications, and brand strategy training for the region." },
-  { id: "p5", name: "Dr. Grace Ssembatya", initials: "GS", type: "Individual consultant", verified: true, rating: 4.9, meta: "Independent · 5 courses", bio: "Organisational development consultant with 18 years across public-sector reform programmes." },
-  { id: "p6", name: "Pearl Leadership Partners", initials: "PL", type: "Individual consultant", verified: false, rating: 0, meta: "Entebbe · new applicant", bio: "Leadership and governance consultancy applying to join the CPD provider rail." },
+  { id: "p1", name: "Makerere Executive Institute", initials: "ME", type: "Institution", verified: true, rating: 4.9, meta: "Kampala · 22 courses", bio: "The executive education arm of Makerere University, delivering accredited professional programmes across disciplines since 2009.", qualifications: "NCHE-accredited institution; ISO 9001:2015 certified; faculty hold PhDs and professional fellowships (FCCA, FCIPD).", website: "https://mei.example.ac.ug" },
+  { id: "p2", name: "Deloitte Uganda Academy", initials: "DA", type: "Training company", verified: true, rating: 4.8, meta: "Kampala · 15 courses", bio: "Professional training from Deloitte's East Africa practice, covering finance, risk, and governance.", qualifications: "ACCA & ICPAU approved learning partner; trainers are qualified CPAs and CISA holders.", website: "https://deloitte.example.com/ug/academy" },
+  { id: "p3", name: "Uganda Institute of Applied Professionals", initials: "UI", type: "Institution", verified: true, rating: 4.7, meta: "Jinja · 9 courses", bio: "Hands-on technical and engineering CPD delivered by practising professionals.", qualifications: "UIPE-endorsed; facilitators are registered professional engineers (R.Eng).", website: "https://uiap.example.ac.ug" },
+  { id: "p4", name: "BrandHouse East Africa", initials: "BH", type: "Training company", verified: true, rating: 4.6, meta: "Kampala · 7 courses", bio: "Marketing, communications, and brand strategy training for the region.", qualifications: "Marketing Society of Uganda member; CIM-certified lead facilitators.", website: "https://brandhouse.example.com" },
+  { id: "p5", name: "Dr. Grace Ssembatya", initials: "GS", type: "Individual consultant", verified: true, rating: 4.9, meta: "Independent · 5 courses", bio: "Organisational development consultant with 18 years across public-sector reform programmes.", qualifications: "PhD Organisational Psychology (Makerere); Chartered MCIPD; certified executive coach (ICF PCC).", website: null },
+  { id: "p6", name: "Pearl Leadership Partners", initials: "PL", type: "Individual consultant", verified: false, rating: 0, meta: "Entebbe · new applicant", bio: "Leadership and governance consultancy applying to join the CPD provider rail.", qualifications: "MBA (Strathmore); Prosci change-management certified.", website: "https://pearlleadership.example.com" },
 ];
 
 const reviewsByCourse: Record<string, Review[]> = {
@@ -197,8 +207,9 @@ function mkCourse(
   id: string, providerId: string, title: string, description: string,
   profession: string, format: Course["format"], points: number, rating: number,
   reviewsCount: number, schedule: string, fee: string, seats: number,
+  city = "Kampala", country = "Uganda",
 ): RawCourse {
-  return { id, providerId, title, description, profession, format, points, rating, reviewsCount, schedule, fee, seats, verified: true, status: "APPROVED" };
+  return { id, providerId, title, description, profession, format, points, rating, reviewsCount, schedule, fee, seats, city, country, verified: true, status: "APPROVED" };
 }
 
 function iso(d: string): string {
@@ -381,6 +392,9 @@ function seed(): DB {
       { id: "ps3", organizationId: "org_nwsc", course: "Project Management for Engineers", description: "PMBOK-aligned delivery for infrastructure projects.", dept: "Engineering", sector: "Project Delivery", mode: "Online", venue: "", address: "", platform: "Zoom", link: "zoom.us/j/cpd-eng-2026", access: "Link sent 24h before start.", cost: 350000, costBasis: "Per participant", provider: "Nakawa Technical Consult", providerType: "External", date: "15 Sep 2026", month: "Sep", time: "14:00–17:00", capacity: 3, status: "Planned", allocated: ["n4"] },
       { id: "ps4", organizationId: "org_nwsc", course: "Digital Marketing Strategy", description: "Analytics, paid media and brand growth for East African markets.", dept: "Marketing", sector: "Digital Marketing", mode: "Physical", venue: "BrandForge Studio", address: "Bugolobi, Kampala", platform: "", link: "", access: "", cost: 380000, costBasis: "Per participant", provider: "BrandForge Consulting", providerType: "External", date: "15 Oct 2026", month: "Oct", time: "10:00–16:00", capacity: 3, status: "Planned", allocated: ["n5"] },
       { id: "ps5", organizationId: "org_nwsc", course: "Internal Controls & Fraud Risk", description: "Building a controls culture and detecting fraud early.", dept: "Finance", sector: "Audit & Assurance", mode: "Online", venue: "", address: "", platform: "Microsoft Teams", link: "teams.microsoft.com/l/cpd-fin", access: "Join via calendar invite.", cost: 0, costBasis: "Internal (no cost)", provider: "Internal Audit Team", providerType: "Internal", date: "20 Nov 2026", month: "Nov", time: "09:00–12:00", capacity: 5, status: "Planned", allocated: ["n2", "n3"] },
+    ],
+    recommendations: [
+      { id: "rec_seed1", tenderId: "tn3", fromProviderId: "p1", toProviderId: "p4", note: "This digital marketing tender is right up your street — different sector to ours.", createdAt: iso("2026-04-16") },
     ],
   };
 }
@@ -617,7 +631,7 @@ export async function handle(method: string, path: string, body: unknown): Promi
       const name: string = b.name ?? "";
       const initials = (name.split(" ").filter(Boolean).slice(0, 2).map((w: string) => w[0]).join("") || "?").toUpperCase();
       const type = b.consultantType === "institution" ? "Institution" : "Individual consultant";
-      const provider: Provider = { id: uid("prov_"), name, initials, type, verified: false, rating: 0, meta: b.location ? `${b.location} · new applicant` : "New applicant", bio: b.expertise ?? null };
+      const provider: Provider = { id: uid("prov_"), name, initials, type, verified: false, rating: 0, meta: b.location ? `${b.location} · new applicant` : "New applicant", bio: b.expertise ?? null, qualifications: b.qualifications ?? null, website: b.website ?? null };
       db.providers.push(provider);
       const user: StoredUser = { ...base, role: "PROVIDER", profession: null, onboarded: true, providerId: provider.id };
       db.users.push(user);
@@ -1058,7 +1072,7 @@ export async function handle(method: string, path: string, body: unknown): Promi
       .sort((a, b2) => a.name.localeCompare(b2.name))
       .map((p) => ({
         id: p.id, name: p.name, initials: p.initials, type: p.type,
-        verified: p.verified, rating: p.rating, meta: p.meta, bio: p.bio,
+        verified: p.verified, rating: p.rating, meta: p.meta, bio: p.bio, qualifications: p.qualifications ?? null, website: p.website ?? null,
         courseCount: db.courses.filter((c) => c.providerId === p.id).length,
       }));
     return { consultants: list };
@@ -1079,7 +1093,7 @@ export async function handle(method: string, path: string, body: unknown): Promi
     return {
       consultant: {
         id: p.id, name: p.name, initials: p.initials, type: p.type,
-        verified: p.verified, rating: p.rating, meta: p.meta, bio: p.bio,
+        verified: p.verified, rating: p.rating, meta: p.meta, bio: p.bio, qualifications: p.qualifications ?? null, website: p.website ?? null,
         courses: provCourses,
       },
     };
@@ -1106,7 +1120,7 @@ export async function handle(method: string, path: string, body: unknown): Promi
     const id = rawPath.split("/")[3];
     const p = db.providers.find((x) => x.id === id);
     if (!p) throw { status: 404, error: "Consultant not found" };
-    for (const k of ["name", "initials", "type", "meta", "bio"] as const) {
+    for (const k of ["name", "initials", "type", "meta", "bio", "qualifications", "website"] as const) {
       if (b[k] !== undefined) (p as any)[k] = b[k];
     }
     if (b.verified !== undefined) p.verified = !!b.verified;
@@ -1161,7 +1175,7 @@ export async function handle(method: string, path: string, body: unknown): Promi
       .map((c) => ({
         id: c.id, title: c.title, description: c.description, profession: c.profession,
         format: c.format, points: c.points, fee: c.fee, schedule: c.schedule,
-        seats: c.seats, status: c.status,
+        seats: c.seats, status: c.status, city: c.city ?? null, country: c.country ?? null,
         enrolments: db.enrollments.filter((e) => e.courseId === c.id).length,
       }));
     return { courses: list };
@@ -1173,7 +1187,8 @@ export async function handle(method: string, path: string, body: unknown): Promi
       id: uid("pc_"), providerId: pid, title: b.title, description: b.description,
       profession: b.profession, format: b.format, points: Number(b.points),
       rating: 0, reviewsCount: 0, schedule: b.schedule, fee: b.fee,
-      seats: Number(b.seats), verified: false, status: "PENDING",
+      seats: Number(b.seats), city: b.city ?? null, country: b.country ?? null,
+      verified: false, status: "PENDING",
     };
     db.courses.push(c);
     save(db);
@@ -1185,7 +1200,7 @@ export async function handle(method: string, path: string, body: unknown): Promi
     const id = rawPath.split("/")[3];
     const c = db.courses.find((x) => x.id === id && x.providerId === pid);
     if (!c) throw { status: 404, error: "Course not found" };
-    for (const k of ["title", "description", "profession", "format", "schedule", "fee"] as const) {
+    for (const k of ["title", "description", "profession", "format", "schedule", "fee", "city", "country"] as const) {
       if (b[k] !== undefined) (c as any)[k] = b[k];
     }
     if (b.points !== undefined) c.points = Number(b.points);
@@ -1263,6 +1278,60 @@ export async function handle(method: string, path: string, body: unknown): Promi
     db.bids = db.bids.filter((x) => x.id !== id);
     save(db);
     return { ok: true };
+  }
+
+  // --- Provider: profile (editable) ---
+  if (method === "GET" && rawPath === "/provider/profile") {
+    const pid = requireProvider(db);
+    const p = db.providers.find((x) => x.id === pid);
+    if (!p) throw { status: 404, error: "Provider not found" };
+    return { profile: { id: p.id, name: p.name, initials: p.initials, type: p.type, verified: p.verified, rating: p.rating, meta: p.meta ?? null, bio: p.bio ?? null, qualifications: p.qualifications ?? null, website: p.website ?? null } };
+  }
+  if (method === "PATCH" && rawPath === "/provider/profile") {
+    const pid = requireProvider(db);
+    const p = db.providers.find((x) => x.id === pid);
+    if (!p) throw { status: 404, error: "Provider not found" };
+    for (const k of ["name", "type", "meta", "bio", "qualifications", "website"] as const) {
+      if (b[k] !== undefined) (p as any)[k] = b[k];
+    }
+    if (b.name) p.initials = (String(b.name).split(" ").filter(Boolean).slice(0, 2).map((w: string) => w[0]).join("") || p.initials).toUpperCase();
+    save(db);
+    return { ok: true };
+  }
+
+  // --- Provider: recommend a tender to another consultant ---
+  if (method === "GET" && rawPath === "/provider/consultants") {
+    const pid = requireProvider(db);
+    const list = db.providers
+      .filter((x) => x.id !== pid)
+      .sort((a, b2) => a.name.localeCompare(b2.name))
+      .map((x) => ({ id: x.id, name: x.name, initials: x.initials, type: x.type, verified: x.verified, meta: x.meta ?? null }));
+    return { consultants: list };
+  }
+  if (method === "POST" && /^\/provider\/tenders\/[^/]+\/recommend$/.test(rawPath)) {
+    const pid = requireProvider(db);
+    const id = rawPath.split("/")[3];
+    const t = db.tenders.find((x) => x.id === id);
+    if (!t) throw { status: 404, error: "Tender not found" };
+    if (!b.toProviderId || !db.providers.some((x) => x.id === b.toProviderId)) throw { status: 400, error: "Choose a consultant to recommend to" };
+    const list = (db.recommendations ??= []);
+    const rec: DbRecommendation = { id: uid("rec_"), tenderId: id, fromProviderId: pid, toProviderId: b.toProviderId, note: b.note ?? "", createdAt: new Date().toISOString() };
+    list.push(rec);
+    save(db);
+    return { ok: true, id: rec.id };
+  }
+  if (method === "GET" && rawPath === "/provider/recommendations") {
+    const pid = requireProvider(db);
+    const list = (db.recommendations ?? [])
+      .filter((r) => r.toProviderId === pid)
+      .sort((a, b2) => +new Date(b2.createdAt) - +new Date(a.createdAt))
+      .map((r) => {
+        const t = db.tenders.find((x) => x.id === r.tenderId);
+        const from = db.providers.find((x) => x.id === r.fromProviderId);
+        const org = t ? db.organizations.find((o) => o.id === t.organizationId) : null;
+        return { id: r.id, note: r.note, createdAt: r.createdAt, fromName: from?.name ?? "A consultant", tender: { id: t?.id ?? r.tenderId, title: t?.title ?? "Tender", category: t?.category ?? "", budget: t?.budget ?? "", deadline: t?.deadline ?? "", organizationName: org?.name ?? "Organization" } };
+      });
+    return { recommendations: list };
   }
 
   // --- Organization ---
@@ -1454,7 +1523,7 @@ export async function handle(method: string, path: string, body: unknown): Promi
       .sort((a, b2) => (a.verified === b2.verified ? b2.rating - a.rating : a.verified ? -1 : 1))
       .map((p) => ({
         id: p.id, name: p.name, initials: p.initials, type: p.type,
-        verified: p.verified, rating: p.rating, meta: p.meta, bio: p.bio,
+        verified: p.verified, rating: p.rating, meta: p.meta, bio: p.bio, qualifications: p.qualifications ?? null, website: p.website ?? null,
         courseCount: db.courses.filter((c) => c.providerId === p.id).length,
       }));
     return { consultants: list };
@@ -1467,7 +1536,7 @@ export async function handle(method: string, path: string, body: unknown): Promi
     return {
       consultant: {
         id: p.id, name: p.name, initials: p.initials, type: p.type,
-        verified: p.verified, rating: p.rating, meta: p.meta, bio: p.bio,
+        verified: p.verified, rating: p.rating, meta: p.meta, bio: p.bio, qualifications: p.qualifications ?? null, website: p.website ?? null,
         courses: db.courses.filter((c) => c.providerId === id && c.status === "APPROVED").map((c) => ({ id: c.id, title: c.title, profession: c.profession, format: c.format, points: c.points, fee: c.fee, schedule: c.schedule })),
       },
     };

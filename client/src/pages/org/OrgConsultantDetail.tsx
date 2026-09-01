@@ -35,8 +35,17 @@ export default function OrgConsultantDetail() {
               {c.verified && <Badge tone="green">✓ Verified provider</Badge>}
             </div>
             <div className="mt-1 text-sm text-muted">{c.type}{c.meta ? ` · ${c.meta}` : ""}</div>
-            <div className="mt-2 flex items-center gap-2 text-[13px] text-muted"><Stars value={c.rating} /> {c.rating.toFixed(1)} average rating</div>
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-[13px] text-muted">
+              <span className="flex items-center gap-2"><Stars value={c.rating} /> {c.rating.toFixed(1)} average rating</span>
+              {c.website && <a href={c.website} target="_blank" rel="noreferrer" className="font-semibold text-teal hover:underline">Website ↗</a>}
+            </div>
             {c.bio && <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">{c.bio}</p>}
+            {c.qualifications && (
+              <div className="mt-3 rounded-xl border border-line bg-[#F6F9F9] p-3.5">
+                <div className="label-caps text-muted">Qualifications & certifications</div>
+                <p className="mt-1 max-w-2xl text-sm text-ink">{c.qualifications}</p>
+              </div>
+            )}
           </div>
           <button onClick={() => navigate("/org/inhouse")} className="btn-primary">Request a quote</button>
         </div>

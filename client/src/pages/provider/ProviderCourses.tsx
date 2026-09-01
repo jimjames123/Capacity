@@ -22,10 +22,12 @@ interface CourseForm {
   fee: string;
   schedule: string;
   seats: string;
+  country: string;
+  city: string;
 }
 const EMPTY: CourseForm = {
   title: "", description: "", profession: "HR", format: "IN_PERSON",
-  points: "2", fee: "", schedule: "", seats: "25",
+  points: "2", fee: "", schedule: "", seats: "25", country: "Uganda", city: "",
 };
 
 export default function ProviderCourses() {
@@ -78,6 +80,7 @@ export default function ProviderCourses() {
                   <span>{c.profession}</span><span>·</span>
                   <span>{pointsLabel(c.points)}</span><span>·</span>
                   <span>{c.schedule}</span>
+                  {(c.city || c.country) && <><span>·</span><span>📍 {[c.city, c.country].filter(Boolean).join(", ")}</span></>}
                 </div>
                 <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
                   <span className="text-[13px] text-muted">{c.enrolments} enrolled · {c.fee}</span>
@@ -122,6 +125,7 @@ function CourseFormModal({
           title: initial.title, description: initial.description, profession: initial.profession,
           format: initial.format, points: String(initial.points), fee: initial.fee,
           schedule: initial.schedule, seats: String(initial.seats),
+          country: initial.country ?? "Uganda", city: initial.city ?? "",
         }
       : EMPTY,
   );
@@ -137,6 +141,7 @@ function CourseFormModal({
       title: form.title, description: form.description, profession: form.profession,
       format: form.format, points: Number(form.points), fee: form.fee,
       schedule: form.schedule, seats: Number(form.seats),
+      country: form.country, city: form.city,
     };
     try {
       if (isEdit && initial) await api.patch(`/provider/courses/${initial.id}`, payload);
@@ -178,6 +183,10 @@ function CourseFormModal({
           <Field label="Fee" value={form.fee} onChange={set("fee")} placeholder="UGX 300,000" required />
         </div>
         <Field label="Schedule" value={form.schedule} onChange={set("schedule")} placeholder="Starts 6 May · 1 day" required />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Country" value={form.country} onChange={set("country")} placeholder="Uganda" optional />
+          <Field label="City / town" value={form.city} onChange={set("city")} placeholder="Kampala" optional />
+        </div>
         {!isEdit && (
           <p className="text-[12.5px] text-muted">Submitted for approval — it appears in the marketplace once verified.</p>
         )}

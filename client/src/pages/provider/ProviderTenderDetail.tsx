@@ -2,9 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, ApiError } from "../../lib/api";
 import { Badge, EmptyState } from "../../components/ui";
+import { Modal } from "../../components/Modal";
 import { Field, FormError } from "../../components/Field";
 import { BID_STATUS_META, formatDate } from "../../lib/format";
 import type { Bid, Tender } from "../../lib/types";
+
+interface ConsultantLite { id: string; name: string; initials: string; type: string; verified: boolean; meta: string | null }
 
 export default function ProviderTenderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +21,7 @@ export default function ProviderTenderDetail() {
   const [busy, setBusy] = useState<null | "draft" | "submit">(null);
   const [formErr, setFormErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [recommending, setRecommending] = useState(false);
 
   const load = useCallback(() => {
     if (!id) return;
@@ -85,6 +89,14 @@ export default function ProviderTenderDetail() {
             <Detail label="Delivery" value={tender.deliveryMode} />
             <Detail label="Participants" value={String(tender.seats)} />
           </div>
+
+          <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
+            <div>
+              <div className="font-serif text-[15px] font-semibold text-ink">Not your specialism?</div>
+              <p className="text-[13px] text-muted">Pass this tender on to a consultant on the platform — e.g. in a different sector.</p>
+            </div>
+            <button onClick={() => setRecommending(true)} className="btn-ghost px-4 py-2">↗ Recommend to a consultant</button>
+          </div>
         </div>
 
         {/* Bid form */}
@@ -139,7 +151,80 @@ export default function ProviderTenderDetail() {
           </div>
         </div>
       </div>
+
+      {recommending && tender && (
+        <RecommendModal tenderId={tender.id} tenderTitle={tender.title} onClose={() => setRecommending(false)} />
+      )}
     </div>
+  );
+}
+
+function RecommendModal({ tenderId, tenderTitle, onClose }: { tenderId: string; tenderTitle: string; onClose: () => void }) {
+  const [consultants, setConsultants] = useState<ConsultantLite[] | null>(null);
+  const [toId, setToId] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+
+  useEffect(() => {
+    api.get<{ consultants: ConsultantLite[] }>("/provider/consultants").then((r) => setConsultants(r.consultants)).catch(() => setConsultants([]));
+  }, []);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!toId) { setErr("Choose a consultant to recommend to."); return; }
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.post(`/provider/tenders/${tenderId}/recommend`, { toProviderId: toId, note });
+      setSent(true);
+    } catch (e2) {
+      setErr(e2 instanceof ApiError ? e2.message : "Could not send the recommendation");
+      setBusy(false);
+    }
+  }
+
+  const chosen = consultants?.find((c) => c.id === toId);
+
+  return (
+    <Modal open onClose={onClose} title={sent ? "Recommendation sent" : "Recommend this tender"}>
+      {sent ? (
+        <div className="space-y-4">
+          <p className="text-sm text-muted">
+            We've let <span className="font-semibold text-ink">{chosen?.name ?? "the consultant"}</span> know about
+            <span className="font-semibold text-ink"> {tenderTitle}</span>. It'll appear in their notifications.
+          </p>
+          <div className="flex justify-end"><button onClick={onClose} className="btn-primary px-4 py-2">Done</button></div>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="space-y-4">
+          <div className="rounded-xl bg-[#F3F6F6] p-3.5 text-[13px] text-muted">Recommending <span className="font-semibold text-ink">{tenderTitle}</span></div>
+          <label className="block">
+            <span className="field-label">Recommend to</span>
+            {!consultants ? (
+              <div className="h-11 animate-pulse rounded-xl bg-line" />
+            ) : (
+              <select className="field" value={toId} onChange={(e) => setToId(e.target.value)}>
+                <option value="">Choose a consultant…</option>
+                {consultants.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name} — {c.type}{c.verified ? "" : " (pending)"}</option>
+                ))}
+              </select>
+            )}
+          </label>
+          <label className="block">
+            <span className="field-label">Note <span className="font-normal text-muted">(optional)</span></span>
+            <textarea className="field min-h-[80px] resize-y" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Why this is a good fit for them…" />
+          </label>
+          <FormError>{err}</FormError>
+          <div className="flex justify-end gap-3 pt-1">
+            <button type="button" onClick={onClose} className="btn-ghost">Cancel</button>
+            <button type="submit" disabled={busy} className="btn-primary">{busy ? "Sending…" : "Send recommendation"}</button>
+          </div>
+        </form>
+      )}
+    </Modal>
   );
 }
 

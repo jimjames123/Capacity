@@ -25,6 +25,8 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
   const [profession, setProfession] = useState(PROFESSIONS[0]);
   const [sector, setSector] = useState("");
   const [expertise, setExpertise] = useState("");
+  const [qualifications, setQualifications] = useState("");
+  const [website, setWebsite] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -53,6 +55,8 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
           consultantType: accountType === "consultant" ? consultantType : undefined,
           sector: accountType === "organization" ? sector : undefined,
           expertise: accountType === "consultant" ? expertise : undefined,
+          qualifications: accountType === "consultant" ? qualifications : undefined,
+          website: accountType === "consultant" ? website : undefined,
         });
         navigate(homePathForUser(u));
       } else {
@@ -235,15 +239,36 @@ export default function Auth({ mode }: { mode: "signin" | "signup" }) {
             )}
 
             {isSignup && accountType === "consultant" && (
-              <div>
-                <label className="field-label">Area of expertise <span className="font-normal text-muted">(optional)</span></label>
-                <input
-                  className="field"
-                  value={expertise}
-                  onChange={(e) => setExpertise(e.target.value)}
-                  placeholder="Leadership, governance & compliance"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="field-label">Area of expertise <span className="font-normal text-muted">(optional)</span></label>
+                  <input
+                    className="field"
+                    value={expertise}
+                    onChange={(e) => setExpertise(e.target.value)}
+                    placeholder="Leadership, governance & compliance"
+                  />
+                </div>
+                <div>
+                  <label className="field-label">Notable qualifications / certifications <span className="font-normal text-muted">(optional)</span></label>
+                  <textarea
+                    className="field min-h-[76px] resize-y"
+                    value={qualifications}
+                    onChange={(e) => setQualifications(e.target.value)}
+                    placeholder="e.g. PhD Organisational Psychology; Chartered MCIPD; ICF PCC coach; ACCA-accredited"
+                  />
+                </div>
+                <div>
+                  <label className="field-label">Website <span className="font-normal text-muted">(optional)</span></label>
+                  <input
+                    className="field"
+                    type="url"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="https://your-practice.com"
+                  />
+                </div>
+              </>
             )}
 
             {error && (

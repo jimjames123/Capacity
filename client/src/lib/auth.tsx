@@ -31,6 +31,8 @@ export interface SignupInput {
   sector?: string;
   location?: string;
   expertise?: string;
+  qualifications?: string;
+  website?: string;
 }
 
 const AuthContext = createContext<AuthState | null>(null);

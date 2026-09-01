@@ -28,6 +28,7 @@ import ProviderTenders from "./pages/provider/ProviderTenders";
 import ProviderTenderDetail from "./pages/provider/ProviderTenderDetail";
 import ProviderBids from "./pages/provider/ProviderBids";
 import ProviderNotifications from "./pages/provider/ProviderNotifications";
+import ProviderProfile from "./pages/provider/ProviderProfile";
 import { OrgLayout } from "./components/OrgLayout";
 import OrgHome from "./pages/org/OrgHome";
 import OrgStaff from "./pages/org/OrgStaff";
@@ -150,6 +151,7 @@ export default function App() {
         <Route path="tenders/:id" element={<ProviderTenderDetail />} />
         <Route path="bids" element={<ProviderBids />} />
         <Route path="notifications" element={<ProviderNotifications />} />
+        <Route path="profile" element={<ProviderProfile />} />
       </Route>
 
       <Route

@@ -30,6 +30,8 @@ export interface ProviderCourse {
   seats: number;
   status: CourseStatus;
   enrolments: number;
+  city?: string | null;
+  country?: string | null;
 }
 
 export interface ProviderStats {
@@ -323,6 +325,38 @@ export interface Provider {
   rating: number;
   meta: string | null;
   bio: string | null;
+  qualifications?: string | null;
+  website?: string | null;
+}
+
+/** The provider's own editable profile. */
+export interface ProviderProfileData {
+  id: string;
+  name: string;
+  initials: string;
+  type: string;
+  verified: boolean;
+  rating: number;
+  meta: string | null;
+  bio: string | null;
+  qualifications: string | null;
+  website: string | null;
+}
+
+/** A tender one consultant recommends to another (e.g. a different sector). */
+export interface TenderRecommendation {
+  id: string;
+  note: string;
+  createdAt: string;
+  fromName: string;
+  tender: {
+    id: string;
+    title: string;
+    category: string;
+    budget: string;
+    deadline: string;
+    organizationName: string;
+  };
 }
 
 export type CourseFormat = "IN_PERSON" | "ONLINE" | "HYBRID";
@@ -348,6 +382,8 @@ export interface Course {
   fee: string;
   seats: number;
   verified: boolean;
+  city?: string | null;
+  country?: string | null;
   provider: Provider;
   reviews?: Review[];
 }
@@ -392,6 +428,8 @@ export interface ConsultantRow {
   meta: string | null;
   bio: string | null;
   courseCount: number;
+  qualifications?: string | null;
+  website?: string | null;
 }
 
 export interface ConsultantCourse {
@@ -415,6 +453,8 @@ export interface ConsultantDetail {
   rating: number;
   meta: string | null;
   bio: string | null;
+  qualifications?: string | null;
+  website?: string | null;
   courses: ConsultantCourse[];
 }
 

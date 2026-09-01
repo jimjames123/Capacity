@@ -97,6 +97,12 @@ export default function CourseDetail() {
             {course.provider.bio && (
               <p className="mt-3 text-sm leading-relaxed text-muted">{course.provider.bio}</p>
             )}
+            {course.provider.qualifications && (
+              <p className="mt-2 text-[12.5px] text-muted"><span className="font-semibold text-ink">Qualifications:</span> {course.provider.qualifications}</p>
+            )}
+            {course.provider.website && (
+              <a href={course.provider.website} target="_blank" rel="noreferrer" className="mt-2 inline-block text-[13px] font-semibold text-teal hover:underline">Visit website ↗</a>
+            )}
           </div>
 
           {/* Reviews */}
@@ -127,6 +133,9 @@ export default function CourseDetail() {
             <dl className="mt-5 space-y-3 text-sm">
               <Detail label="Format" value={FORMAT_META[course.format as CourseFormat]} />
               <Detail label="Schedule" value={course.schedule} />
+              {(course.city || course.country) && (
+                <Detail label="Location" value={[course.city, course.country].filter(Boolean).join(", ")} />
+              )}
               <Detail label="CPD points" value={pointsLabel(course.points)} />
               <Detail label="Seats remaining" value={String(course.seats)} />
             </dl>
