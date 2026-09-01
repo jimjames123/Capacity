@@ -23,7 +23,7 @@ import type {
 } from "./types";
 
 // Bump when the seed shape changes so returning visitors get fresh demo data.
-const LS_KEY = "cs_static_db_v8";
+const LS_KEY = "cs_static_db_v9";
 
 interface StoredUser extends User {
   password: string;
@@ -286,6 +286,15 @@ function seed(): DB {
       organizationId: "org_nwsc",
       createdAt: iso("2025-10-01"),
     },
+    ...([
+      ["u_m2", "nadia@example.com", "Nadia Kirabo", "Marketing", "MSU-2023-0221"],
+      ["u_m3", "samuel@example.com", "Samuel Opio", "Marketing", "MSU-2022-0148"],
+      ["u_m4", "farida@example.com", "Farida Ssentongo", "Marketing", "MSU-2024-0390"],
+    ] as const).map(([id, email, name, profession, membershipNo]) => ({
+      id, email, password: "password123", name, role: "MEMBER" as const, profession,
+      membershipNo, professionalBody: "Marketing Society of Uganda", jobTitle: "Marketing Officer",
+      organisation: null, onboarded: true, createdAt: iso("2025-11-05"),
+    })),
   ];
 
   const cycles: Cycle[] = [
@@ -364,7 +373,14 @@ function seed(): DB {
     users,
     cycles,
     entries,
-    enrollments: [{ id: "en1", userId: aishaId, courseId: "c3", status: "ENROLLED", createdAt: iso("2026-02-01") }],
+    enrollments: [
+      { id: "en1", userId: aishaId, courseId: "c3", status: "ENROLLED", createdAt: iso("2026-02-01") },
+      // BrandHouse (p4) — Digital Marketing Analytics (c5) cohort, for provider reports.
+      { id: "en2", userId: aishaId, courseId: "c5", status: "ENROLLED", createdAt: iso("2026-03-04") },
+      { id: "en3", userId: "u_m2", courseId: "c5", status: "ENROLLED", createdAt: iso("2026-03-06") },
+      { id: "en4", userId: "u_m3", courseId: "c5", status: "ENROLLED", createdAt: iso("2026-03-09") },
+      { id: "en5", userId: "u_m4", courseId: "c5", status: "ENROLLED", createdAt: iso("2026-03-12") },
+    ],
     organizations,
     staff,
     providers: PROVIDER_SEED.map((p) => ({ ...p })),
@@ -1297,6 +1313,57 @@ export async function handle(method: string, path: string, body: unknown): Promi
     if (b.name) p.initials = (String(b.name).split(" ").filter(Boolean).slice(0, 2).map((w: string) => w[0]).join("") || p.initials).toUpperCase();
     save(db);
     return { ok: true };
+  }
+
+  // --- Provider: reports ---
+  if (method === "GET" && rawPath === "/provider/reports") {
+    const pid = requireProvider(db);
+    const provider = db.providers.find((p) => p.id === pid) ?? null;
+    const courses = db.courses.filter((c) => c.providerId === pid);
+    const enrolFor = (cid: string) => db.enrollments.filter((e) => e.courseId === cid);
+
+    const courseRows = courses.map((c) => ({
+      id: c.id, title: c.title, profession: c.profession, format: c.format,
+      points: c.points, fee: c.fee, status: c.status, rating: c.rating,
+      city: c.city ?? null, country: c.country ?? null,
+      enrolments: enrolFor(c.id).length,
+    }));
+    const totalEnrolments = courseRows.reduce((s, c) => s + c.enrolments, 0);
+
+    const byStatus = { APPROVED: 0, PENDING: 0, REJECTED: 0 } as Record<string, number>;
+    for (const c of courses) byStatus[c.status] = (byStatus[c.status] ?? 0) + 1;
+
+    const byProfession: Record<string, number> = {};
+    for (const c of courseRows) byProfession[c.profession] = (byProfession[c.profession] ?? 0) + c.enrolments;
+
+    const enrolments = courses
+      .map((c) => ({
+        courseId: c.id, course: c.title, status: c.status,
+        learners: enrolFor(c.id)
+          .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))
+          .map((e) => {
+            const u = db.users.find((x) => x.id === e.userId);
+            return { name: u?.name ?? "Learner", profession: u?.profession ?? null, membershipNo: u?.membershipNo ?? null, since: e.createdAt };
+          }),
+      }))
+      .filter((x) => x.learners.length > 0);
+
+    const myBids = db.bids.filter((b) => b.providerId === pid);
+    const cpdPointsDelivered = courseRows.reduce((s, c) => s + c.points * c.enrolments, 0);
+    const ratings = courses.filter((c) => c.rating > 0).map((c) => c.rating);
+    const avgRating = ratings.length ? Math.round((ratings.reduce((a, b2) => a + b2, 0) / ratings.length) * 10) / 10 : (provider?.rating ?? 0);
+
+    return {
+      provider: { name: provider?.name ?? "Provider", type: provider?.type ?? "" },
+      generatedAt: new Date().toISOString(),
+      stats: {
+        courses: courses.length, live: byStatus.APPROVED, pending: byStatus.PENDING,
+        totalEnrolments, cpdPointsDelivered: Math.round(cpdPointsDelivered * 10) / 10,
+        bids: myBids.length, submittedBids: myBids.filter((b) => b.status === "SUBMITTED").length,
+        won: myBids.filter((b) => b.status === "ACCEPTED").length, avgRating,
+      },
+      byStatus, byProfession, courses: courseRows, enrolments,
+    };
   }
 
   // --- Provider: recommend a tender to another consultant ---

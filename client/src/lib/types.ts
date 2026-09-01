@@ -34,6 +34,43 @@ export interface ProviderCourse {
   country?: string | null;
 }
 
+export interface ProviderReport {
+  provider: { name: string; type: string };
+  generatedAt: string;
+  stats: {
+    courses: number;
+    live: number;
+    pending: number;
+    totalEnrolments: number;
+    cpdPointsDelivered: number;
+    bids: number;
+    submittedBids: number;
+    won: number;
+    avgRating: number;
+  };
+  byStatus: Record<string, number>;
+  byProfession: Record<string, number>;
+  courses: {
+    id: string;
+    title: string;
+    profession: string;
+    format: CourseFormat;
+    points: number;
+    fee: string;
+    status: CourseStatus;
+    rating: number;
+    city: string | null;
+    country: string | null;
+    enrolments: number;
+  }[];
+  enrolments: {
+    courseId: string;
+    course: string;
+    status: CourseStatus;
+    learners: { name: string; profession: string | null; membershipNo: string | null; since: string }[];
+  }[];
+}
+
 export interface ProviderStats {
   courses: number;
   approved: number;

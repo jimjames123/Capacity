@@ -8,6 +8,7 @@ const NAV = [
   { to: "/provider/tenders", label: "Tender board", end: false },
   { to: "/provider/bids", label: "My bids", end: false },
   { to: "/provider/notifications", label: "Notifications", end: false },
+  { to: "/provider/reports", label: "Reports", end: false },
   { to: "/provider/profile", label: "Profile", end: false },
 ];
 
