@@ -32,6 +32,7 @@ import ProviderTenders from "./pages/provider/ProviderTenders";
 import ProviderTenderDetail from "./pages/provider/ProviderTenderDetail";
 import ProviderBids from "./pages/provider/ProviderBids";
 import ProviderNotifications from "./pages/provider/ProviderNotifications";
+import ProviderInquiries from "./pages/provider/ProviderInquiries";
 import ProviderProfile from "./pages/provider/ProviderProfile";
 import ProviderReports from "./pages/provider/ProviderReports";
 import { OrgLayout } from "./components/OrgLayout";
@@ -160,6 +161,7 @@ export default function App() {
         <Route path="tenders/:id" element={<ProviderTenderDetail />} />
         <Route path="bids" element={<ProviderBids />} />
         <Route path="notifications" element={<ProviderNotifications />} />
+        <Route path="inquiries" element={<ProviderInquiries />} />
         <Route path="reports" element={<ProviderReports />} />
         <Route path="profile" element={<ProviderProfile />} />
       </Route>

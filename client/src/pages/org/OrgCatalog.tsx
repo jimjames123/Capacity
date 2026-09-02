@@ -18,6 +18,7 @@ export default function OrgCatalog() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rowMsg, setRowMsg] = useState<Record<string, string>>({});
   const [referring, setReferring] = useState<Row | null>(null);
+  const [enquiring, setEnquiring] = useState<Row | null>(null);
 
   function load() {
     api.get<{ sessions: Row[] }>("/organization/catalog").then((r) => setRows(r.sessions)).catch(() => setError("Could not load the catalog"));
@@ -119,8 +120,15 @@ export default function OrgCatalog() {
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
-                  <button onClick={() => book(r, 1)} disabled={full || busyId === r.id} className="btn-primary px-4 py-2 disabled:opacity-50">Book an employee</button>
-                  <button onClick={() => book(r, 5)} disabled={full || r.spotsLeft < 5 || busyId === r.id} className="btn-ghost px-4 py-2 disabled:opacity-50">Book a group (5)</button>
+                  {full ? (
+                    <button onClick={() => setEnquiring(r)} className="btn-primary px-4 py-2">Make an enquiry</button>
+                  ) : (
+                    <>
+                      <button onClick={() => book(r, 1)} disabled={busyId === r.id} className="btn-primary px-4 py-2 disabled:opacity-50">Book an employee</button>
+                      <button onClick={() => book(r, 5)} disabled={r.spotsLeft < 5 || busyId === r.id} className="btn-ghost px-4 py-2 disabled:opacity-50">Book a group (5)</button>
+                      <button onClick={() => setEnquiring(r)} className="rounded-lg px-3 py-2 text-[13px] font-semibold text-teal hover:bg-[#EDF1F1]">Make an enquiry</button>
+                    </>
+                  )}
                   <button onClick={() => setReferring(r)} className="ml-auto rounded-lg px-3 py-2 text-[13px] font-semibold text-teal hover:bg-[#EDF1F1]">↗ Refer a peer</button>
                   {rowMsg[r.id] && <span className="w-full text-[12.5px] font-medium text-green sm:w-auto">{rowMsg[r.id]}</span>}
                 </div>
@@ -131,7 +139,63 @@ export default function OrgCatalog() {
       )}
 
       {referring && <ReferModal row={referring} onClose={() => setReferring(null)} />}
+      {enquiring && <EnquiryModal row={enquiring} onClose={() => setEnquiring(null)} />}
     </div>
+  );
+}
+
+function EnquiryModal({ row, onClose }: { row: Row; onClose: () => void }) {
+  const full = row.spotsLeft <= 0;
+  const [message, setMessage] = useState(full ? "This course is fully booked — please let us know when the next cohort opens or if a place becomes available." : "");
+  const [seats, setSeats] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!message.trim()) { setErr("Add a short message."); return; }
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.post(`/organization/catalog/${row.id}/inquire`, { message: message.trim(), requestedSeats: seats ? Number(seats) : undefined });
+      setSent(true);
+    } catch (e2) {
+      setErr(e2 instanceof ApiError ? e2.message : "Could not send your enquiry");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title={sent ? "Enquiry sent" : full ? "Enquire · join the waitlist" : "Make an enquiry"}>
+      {sent ? (
+        <div className="space-y-4">
+          <p className="text-sm text-muted">
+            Your enquiry about <span className="font-semibold text-ink">{row.title}</span> has been sent to <span className="font-semibold text-ink">{row.consultant}</span>. They'll be in touch{full ? ", and we'll notify you if a place opens up" : ""}.
+          </p>
+          <div className="flex justify-end"><button onClick={onClose} className="btn-primary px-4 py-2">Done</button></div>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="space-y-4">
+          <div className="rounded-xl bg-[#F3F6F6] p-3.5">
+            <div className="font-serif text-[15px] font-semibold text-ink">{row.title}</div>
+            <div className="text-[12.5px] text-muted">{row.consultant} · {row.fee}{full ? " · Fully booked" : ` · ${row.spotsLeft} spots left`}</div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+            <label className="block">
+              <span className="field-label">Your message</span>
+              <textarea className="field min-h-[100px] resize-y" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="e.g. Can you run a private cohort for our team?" />
+            </label>
+            <Field label="Staff to place" type="number" value={seats} onChange={setSeats} placeholder="e.g. 8" optional />
+          </div>
+          <FormError>{err}</FormError>
+          <div className="flex justify-end gap-3 pt-1">
+            <button type="button" onClick={onClose} className="btn-ghost">Cancel</button>
+            <button type="submit" disabled={busy} className="btn-primary">{busy ? "Sending…" : "Send enquiry"}</button>
+          </div>
+        </form>
+      )}
+    </Modal>
   );
 }
 

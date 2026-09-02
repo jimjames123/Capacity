@@ -23,7 +23,7 @@ import type {
 } from "./types";
 
 // Bump when the seed shape changes so returning visitors get fresh demo data.
-const LS_KEY = "cs_static_db_v10";
+const LS_KEY = "cs_static_db_v11";
 
 interface StoredUser extends User {
   password: string;
@@ -47,6 +47,26 @@ interface DB {
   plannedSessions: DbPlanned[];
   referrals?: DbReferral[];
   recommendations?: DbRecommendation[];
+  inquiries?: DbInquiry[];
+}
+
+interface DbInquiry {
+  id: string;
+  scope: "COURSE" | "CATALOG"; // COURSE = marketplace course, CATALOG = org catalog session
+  refId: string;
+  providerId: string | null; // set for COURSE inquiries (routes to the provider)
+  consultantName: string | null; // set for CATALOG inquiries
+  fromUserId: string | null;
+  fromOrgId: string | null;
+  fromName: string;
+  fromEmail: string | null;
+  message: string;
+  requestedSeats: number | null;
+  waitlist: boolean;
+  status: "OPEN" | "ANSWERED";
+  response: string | null;
+  createdAt: string;
+  respondedAt: string | null;
 }
 
 interface DbEnrollment {
@@ -231,11 +251,11 @@ const reviewsByCourse: Record<string, Review[]> = {
 };
 
 const COURSE_SEED: RawCourse[] = [
-  mkCourse("c1", "p3", "Structural Integrity & Safety Auditing", "A practical, three-day programme on inspecting and certifying structural safety for buildings and civil works, aligned to Ugandan engineering practice standards. Includes a supervised field audit.", "Engineering", "IN_PERSON", 4, 4.8, 3, "Starts 4 Mar · 3 days", "UGX 620,000", 12),
+  mkCourse("c1", "p3", "Structural Integrity & Safety Auditing", "A practical, three-day programme on inspecting and certifying structural safety for buildings and civil works, aligned to Ugandan engineering practice standards. Includes a supervised field audit.", "Engineering", "IN_PERSON", 4, 4.8, 3, "Starts 4 Mar · 3 days", "UGX 620,000", 0),
   mkCourse("c2", "p2", "IFRS Update & Practical Application 2026", "Stay current with the latest International Financial Reporting Standards. This course walks through the 2026 amendments with worked examples drawn from East African filings.", "Finance", "HYBRID", 3, 4.9, 4, "Starts 18 Mar · 2 days", "UGX 480,000", 25),
   mkCourse("c3", "p1", "Strategic Workforce Planning", "Build the analytical toolkit to forecast talent needs, model scenarios, and align people strategy with organisational goals. Designed for senior HR practitioners.", "HR", "ONLINE", 3, 4.7, 5, "Self-paced · 6 weeks", "UGX 350,000", 60),
   mkCourse("c4", "p1", "Employment Law for HR Professionals", "A thorough grounding in the Employment Act 2024 and its practical implications for hiring, discipline, and termination. Certificate counts toward HR CPD.", "HR", "IN_PERSON", 2, 4.8, 2, "Starts 11 Mar · 1 day", "UGX 260,000", 30),
-  mkCourse("c5", "p4", "Digital Marketing Analytics", "Turn campaign data into decisions. Covers attribution, dashboards, and measuring ROI across paid and organic channels, with hands-on labs.", "Marketing", "ONLINE", 2, 4.6, 3, "Self-paced · 4 weeks", "UGX 300,000", 80),
+  mkCourse("c5", "p4", "Digital Marketing Analytics", "Turn campaign data into decisions. Covers attribution, dashboards, and measuring ROI across paid and organic channels, with hands-on labs.", "Marketing", "ONLINE", 2, 4.6, 3, "Self-paced · 4 weeks", "UGX 300,000", 0),
   mkCourse("c6", "p5", "Leading Change in Public Institutions", "A cross-industry programme on driving reform and managing change in public-sector and regulated organisations. Blends theory with Ugandan case studies.", "Cross-industry", "HYBRID", 3, 4.9, 4, "Starts 25 Mar · 2 days + coaching", "UGX 540,000", 20),
   mkCourse("c7", "p2", "Risk & Internal Controls Essentials", "Design and evaluate internal control frameworks. Ideal for finance and audit professionals seeking verifiable CPD on governance and risk.", "Finance", "ONLINE", 2, 4.7, 2, "Self-paced · 3 weeks", "UGX 320,000", 100),
   mkCourse("c8", "p3", "Project Management for Engineers (PMP-aligned)", "Plan, schedule, and deliver engineering projects on time and budget. Aligned to PMP principles with templates you can use immediately.", "Engineering", "HYBRID", 4, 4.8, 3, "Starts 8 Apr · 4 evenings", "UGX 700,000", 18),
@@ -515,6 +535,9 @@ function seed(): DB {
     ],
     recommendations: [
       { id: "rec_seed1", tenderId: "tn3", fromProviderId: "p1", toProviderId: "p4", note: "This digital marketing tender is right up your street — different sector to ours.", createdAt: iso("2026-04-16") },
+    ],
+    inquiries: [
+      { id: "inq_seed1", scope: "COURSE", refId: "c5", providerId: "p4", consultantName: null, fromUserId: "u_m3", fromOrgId: null, fromName: "Samuel Opio", fromEmail: "samuel@example.com", message: "This cohort is fully booked — do you plan to run Digital Marketing Analytics again this quarter? I'd love to join the next one.", requestedSeats: null, waitlist: true, status: "OPEN", response: null, createdAt: iso("2026-05-02"), respondedAt: null },
     ],
   };
 }
@@ -855,7 +878,7 @@ export async function handle(method: string, path: string, body: unknown): Promi
     return { courses: list, count: list.length };
   }
 
-  if (method === "GET" && rawPath.startsWith("/courses/") && !rawPath.includes("enroll") && !rawPath.includes("me/")) {
+  if (method === "GET" && rawPath.startsWith("/courses/") && !rawPath.includes("enroll") && !rawPath.includes("me/") && !rawPath.includes("my-inquiry")) {
     const id = rawPath.split("/")[2];
     const raw = db.courses.find((c) => c.id === id);
     if (!raw) throw { status: 404, error: "Course not found" };
@@ -872,6 +895,34 @@ export async function handle(method: string, path: string, body: unknown): Promi
     db.enrollments.push(enrollment);
     save(db);
     return { enrollment };
+  }
+
+  // Ask a question / join the waitlist for a marketplace course.
+  if (method === "POST" && /^\/courses\/[^/]+\/inquire$/.test(rawPath)) {
+    const user = requireUser(db);
+    const courseId = rawPath.split("/")[2];
+    const raw = db.courses.find((c) => c.id === courseId);
+    if (!raw) throw { status: 404, error: "Course not found" };
+    if (!b.message || !String(b.message).trim()) throw { status: 400, error: "Add a short message" };
+    const inq: DbInquiry = {
+      id: uid("inq_"), scope: "COURSE", refId: courseId, providerId: raw.providerId, consultantName: null,
+      fromUserId: user.id, fromOrgId: null, fromName: user.name, fromEmail: user.email,
+      message: String(b.message).trim(), requestedSeats: null, waitlist: !!b.waitlist,
+      status: "OPEN", response: null, createdAt: new Date().toISOString(), respondedAt: null,
+    };
+    (db.inquiries ??= []).push(inq);
+    save(db);
+    return { ok: true, id: inq.id };
+  }
+
+  // The current member's most recent inquiry on a course (to show status/reply).
+  if (method === "GET" && /^\/courses\/[^/]+\/my-inquiry$/.test(rawPath)) {
+    const user = requireUser(db);
+    const courseId = rawPath.split("/")[2];
+    const mine = (db.inquiries ?? [])
+      .filter((q) => q.scope === "COURSE" && q.refId === courseId && q.fromUserId === user.id)
+      .sort((a, b2) => +new Date(b2.createdAt) - +new Date(a.createdAt))[0];
+    return { inquiry: mine ? { id: mine.id, message: mine.message, waitlist: mine.waitlist, status: mine.status, response: mine.response, createdAt: mine.createdAt, respondedAt: mine.respondedAt } : null };
   }
 
   // --- Learner: my courses ---
@@ -1671,6 +1722,31 @@ export async function handle(method: string, path: string, body: unknown): Promi
     return { recommendations: list };
   }
 
+  // --- Provider: inquiries on my courses ---
+  if (method === "GET" && rawPath === "/provider/inquiries") {
+    const pid = requireProvider(db);
+    const list = (db.inquiries ?? [])
+      .filter((q) => q.scope === "COURSE" && q.providerId === pid)
+      .sort((a, b2) => (a.status === b2.status ? +new Date(b2.createdAt) - +new Date(a.createdAt) : a.status === "OPEN" ? -1 : 1))
+      .map((q) => {
+        const course = db.courses.find((c) => c.id === q.refId);
+        return { id: q.id, courseId: q.refId, courseTitle: course?.title ?? "Course", fromName: q.fromName, fromEmail: q.fromEmail, message: q.message, waitlist: q.waitlist, status: q.status, response: q.response, createdAt: q.createdAt, respondedAt: q.respondedAt };
+      });
+    return { inquiries: list };
+  }
+  if (method === "POST" && /^\/provider\/inquiries\/[^/]+\/reply$/.test(rawPath)) {
+    const pid = requireProvider(db);
+    const id = rawPath.split("/")[3];
+    const q = (db.inquiries ?? []).find((x) => x.id === id && x.providerId === pid);
+    if (!q) throw { status: 404, error: "Inquiry not found" };
+    if (!b.response || !String(b.response).trim()) throw { status: 400, error: "Write a reply" };
+    q.response = String(b.response).trim();
+    q.status = "ANSWERED";
+    q.respondedAt = new Date().toISOString();
+    save(db);
+    return { ok: true };
+  }
+
   // --- Organization ---
   if (method === "GET" && rawPath === "/organization/home") {
     const oid = requireOrg(db);
@@ -1961,6 +2037,25 @@ export async function handle(method: string, path: string, body: unknown): Promi
     list.push(ref);
     save(db);
     return { ok: true, id: ref.id };
+  }
+
+  // Enquire / join waitlist for a catalog course (e.g. when fully booked).
+  if (method === "POST" && /^\/organization\/catalog\/[^/]+\/inquire$/.test(rawPath)) {
+    const oid = requireOrg(db);
+    const id = rawPath.split("/")[3];
+    const c = db.catalog.find((x) => x.id === id);
+    if (!c) throw { status: 404, error: "Course not found" };
+    if (!b.message || !String(b.message).trim()) throw { status: 400, error: "Add a short message" };
+    const org = db.organizations.find((o) => o.id === oid);
+    const inq: DbInquiry = {
+      id: uid("inq_"), scope: "CATALOG", refId: id, providerId: null, consultantName: c.consultant,
+      fromUserId: null, fromOrgId: oid, fromName: org?.name ?? "Organization", fromEmail: org?.contactEmail ?? null,
+      message: String(b.message).trim(), requestedSeats: b.requestedSeats ? Number(b.requestedSeats) : null,
+      waitlist: c.booked >= c.capacity, status: "OPEN", response: null, createdAt: new Date().toISOString(), respondedAt: null,
+    };
+    (db.inquiries ??= []).push(inq);
+    save(db);
+    return { ok: true, id: inq.id };
   }
 
   // --- Organization: annual plan (planned sessions) ---

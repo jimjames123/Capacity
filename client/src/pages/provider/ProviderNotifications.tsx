@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
 import { EmptyState } from "../../components/ui";
 import { formatDate } from "../../lib/format";
-import type { Bid, ProviderCourse, TenderBoardItem, TenderRecommendation } from "../../lib/types";
+import type { Bid, ProviderCourse, ProviderInquiry, TenderBoardItem, TenderRecommendation } from "../../lib/types";
 
 interface Notice {
   icon: string;
@@ -24,8 +24,9 @@ export default function ProviderNotifications() {
       api.get<{ courses: ProviderCourse[] }>("/provider/courses"),
       api.get<{ tenders: TenderBoardItem[] }>("/provider/tenders"),
       api.get<{ recommendations: TenderRecommendation[] }>("/provider/recommendations").catch(() => ({ recommendations: [] })),
+      api.get<{ inquiries: ProviderInquiry[] }>("/provider/inquiries").catch(() => ({ inquiries: [] })),
     ])
-      .then(([b, c, t, r]) => setNotices(build(b.bids, c.courses, t.tenders, r.recommendations)))
+      .then(([b, c, t, r, i]) => setNotices(build(b.bids, c.courses, t.tenders, r.recommendations, i.inquiries)))
       .catch(() => setError("Could not load notifications"));
   }, []);
 
@@ -67,8 +68,12 @@ export default function ProviderNotifications() {
   );
 }
 
-function build(bids: Bid[], courses: ProviderCourse[], tenders: TenderBoardItem[], recs: TenderRecommendation[] = []): Notice[] {
+function build(bids: Bid[], courses: ProviderCourse[], tenders: TenderBoardItem[], recs: TenderRecommendation[] = [], inquiries: ProviderInquiry[] = []): Notice[] {
   const out: Notice[] = [];
+
+  for (const q of inquiries) {
+    if (q.status === "OPEN") out.push({ icon: q.waitlist ? "⏳" : "❓", tone: "amber", title: q.waitlist ? `Waitlist request · ${q.courseTitle}` : `New question · ${q.courseTitle}`, meta: `${q.fromName} — “${q.message.length > 60 ? q.message.slice(0, 60) + "…" : q.message}”`, to: "/provider/inquiries", ts: +new Date(q.createdAt) + 6 });
+  }
 
   for (const r of recs) {
     out.push({ icon: "🤝", tone: "green", title: `${r.fromName} recommended a tender to you`, meta: `${r.tender.title} · ${r.tender.organizationName}${r.note ? ` — “${r.note}”` : ""}`, to: `/provider/tenders/${r.tender.id}`, ts: +new Date(r.createdAt) + 5 });

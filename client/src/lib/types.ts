@@ -71,6 +71,30 @@ export interface ProviderReport {
   }[];
 }
 
+export interface MyInquiry {
+  id: string;
+  message: string;
+  waitlist: boolean;
+  status: "OPEN" | "ANSWERED";
+  response: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+}
+
+export interface ProviderInquiry {
+  id: string;
+  courseId: string;
+  courseTitle: string;
+  fromName: string;
+  fromEmail: string | null;
+  message: string;
+  waitlist: boolean;
+  status: "OPEN" | "ANSWERED";
+  response: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+}
+
 export interface ProviderStats {
   courses: number;
   approved: number;
