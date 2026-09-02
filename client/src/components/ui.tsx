@@ -131,14 +131,17 @@ export function Stars({ value }: { value: number }) {
 export function EmptyState({
   title,
   hint,
+  action,
 }: {
   title: string;
   hint?: string;
+  action?: ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-dashed border-line-strong bg-panel px-6 py-12 text-center">
       <div className="font-serif text-lg font-semibold text-ink">{title}</div>
       {hint && <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted">{hint}</p>}
+      {action && <div className="mt-4 flex justify-center">{action}</div>}
     </div>
   );
 }

@@ -23,7 +23,7 @@ import type {
 } from "./types";
 
 // Bump when the seed shape changes so returning visitors get fresh demo data.
-const LS_KEY = "cs_static_db_v9";
+const LS_KEY = "cs_static_db_v10";
 
 interface StoredUser extends User {
   password: string;
@@ -33,7 +33,9 @@ interface DB {
   users: StoredUser[];
   cycles: Cycle[];
   entries: (CpdEntry & { userId: string; cycleId: string })[];
-  enrollments: { id: string; userId: string; courseId: string; status: string; createdAt: string }[];
+  enrollments: DbEnrollment[];
+  notes?: DbNote[];
+  goals?: DbGoal[];
   organizations: Omit<Organization, "staffCount" | "staff">[];
   staff: Staff[];
   providers: Provider[];
@@ -45,6 +47,42 @@ interface DB {
   plannedSessions: DbPlanned[];
   referrals?: DbReferral[];
   recommendations?: DbRecommendation[];
+}
+
+interface DbEnrollment {
+  id: string;
+  userId: string;
+  courseId: string;
+  status: string; // NOT_STARTED | IN_PROGRESS | COMPLETED | PAUSED (legacy: ENROLLED)
+  createdAt: string;
+  progress?: string[]; // completed lesson ids
+  lastLessonId?: string | null;
+  lastAccessedAt?: string | null;
+  timeSpentMin?: number;
+}
+
+interface DbNote {
+  id: string;
+  userId: string;
+  title: string;
+  tags: string[];
+  body: string;
+  courseId: string | null;
+  lessonId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface DbGoal {
+  id: string;
+  userId: string;
+  title: string;
+  description: string;
+  targetDate: string | null;
+  priority: string; // LOW | MEDIUM | HIGH
+  status: string; // ACTIVE | COMPLETED | ARCHIVED
+  courseId: string | null;
+  createdAt: string;
 }
 
 interface DbRecommendation {
@@ -223,6 +261,63 @@ function resolveCourse(db: DB, raw: RawCourse): Course {
   return { ...rest, provider };
 }
 
+// ---- Learner: syllabus, thumbnails, progress -------------------------------
+
+const THUMBS = [
+  { from: "#00897B", to: "#00594E" },
+  { from: "#2F7A55", to: "#17402B" },
+  { from: "#37474F", to: "#1B2429" },
+  { from: "#4E6E81", to: "#2B3F4C" },
+  { from: "#8A6D3B", to: "#5A4523" },
+  { from: "#6D5AA6", to: "#3F3466" },
+];
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+function thumbFor(courseId: string) {
+  return THUMBS[hashStr(courseId) % THUMBS.length];
+}
+
+const LESSON_TEMPLATE = [
+  { module: "Foundations", lessons: ["Orientation & objectives", "Core concepts", "Applied examples"] },
+  { module: "Practice & assessment", lessons: ["Workshop / case study", "Assessment quiz", "Wrap-up & certificate"] },
+];
+function syllabusFor(courseId: string) {
+  let n = 1;
+  return LESSON_TEMPLATE.map((m) => ({
+    title: m.module,
+    lessons: m.lessons.map((t) => ({ id: `${courseId}::l${n++}`, title: t })),
+  }));
+}
+function allLessonIds(courseId: string): string[] {
+  return syllabusFor(courseId).flatMap((m) => m.lessons.map((l) => l.id));
+}
+function lessonTitleOf(courseId: string, lessonId: string): string | null {
+  for (const m of syllabusFor(courseId)) for (const l of m.lessons) if (l.id === lessonId) return l.title;
+  return null;
+}
+function progressOf(e: DbEnrollment) {
+  const ids = allLessonIds(e.courseId);
+  const completed = (e.progress ?? []).filter((id) => ids.includes(id)).length;
+  const total = ids.length;
+  return { completed, total, pct: total ? Math.round((completed / total) * 100) : 0 };
+}
+function effStatus(e: DbEnrollment): string {
+  if (e.status === "PAUSED") return "PAUSED";
+  const p = progressOf(e);
+  return p.completed === 0 ? "NOT_STARTED" : p.completed >= p.total ? "COMPLETED" : "IN_PROGRESS";
+}
+function courseSummary(course: Course, withDescription = false) {
+  return {
+    id: course.id, title: course.title, provider: course.provider.name,
+    profession: course.profession, format: course.format, fee: course.fee,
+    schedule: course.schedule, city: course.city ?? null, country: course.country ?? null,
+    ...(withDescription ? { description: course.description } : {}),
+  };
+}
+
 // ---- Seed ------------------------------------------------------------------
 
 function seed(): DB {
@@ -374,12 +469,21 @@ function seed(): DB {
     cycles,
     entries,
     enrollments: [
-      { id: "en1", userId: aishaId, courseId: "c3", status: "ENROLLED", createdAt: iso("2026-02-01") },
+      { id: "en1", userId: aishaId, courseId: "c3", status: "IN_PROGRESS", createdAt: iso("2026-02-01"), progress: ["c3::l1", "c3::l2"], lastLessonId: "c3::l2", lastAccessedAt: iso("2026-05-18"), timeSpentMin: 95 },
+      { id: "en_a2", userId: aishaId, courseId: "c2", status: "COMPLETED", createdAt: iso("2026-01-14"), progress: ["c2::l1", "c2::l2", "c2::l3", "c2::l4", "c2::l5", "c2::l6"], lastLessonId: "c2::l6", lastAccessedAt: iso("2026-03-20"), timeSpentMin: 240 },
       // BrandHouse (p4) — Digital Marketing Analytics (c5) cohort, for provider reports.
-      { id: "en2", userId: aishaId, courseId: "c5", status: "ENROLLED", createdAt: iso("2026-03-04") },
-      { id: "en3", userId: "u_m2", courseId: "c5", status: "ENROLLED", createdAt: iso("2026-03-06") },
+      { id: "en2", userId: aishaId, courseId: "c5", status: "NOT_STARTED", createdAt: iso("2026-03-04"), progress: [], lastLessonId: null, lastAccessedAt: null, timeSpentMin: 0 },
+      { id: "en3", userId: "u_m2", courseId: "c5", status: "IN_PROGRESS", createdAt: iso("2026-03-06"), progress: ["c5::l1"] },
       { id: "en4", userId: "u_m3", courseId: "c5", status: "ENROLLED", createdAt: iso("2026-03-09") },
       { id: "en5", userId: "u_m4", courseId: "c5", status: "ENROLLED", createdAt: iso("2026-03-12") },
+    ],
+    notes: [
+      { id: "note1", userId: aishaId, title: "Scenario planning — key steps", tags: ["Workshop", "Key ideas"], body: "**Three levers** to model:\n- demand forecast\n- capability gaps\n- cost envelope\n\nRevisit before the [assessment](https://example.com).", courseId: "c3", lessonId: "c3::l2", createdAt: iso("2026-05-10"), updatedAt: iso("2026-05-18") },
+      { id: "note2", userId: aishaId, title: "Exam prep checklist", tags: ["Exam prep"], body: "- Re-read IFRS 2026 amendments\n- Practice the disclosure examples\n- **Time the mock paper**", courseId: null, lessonId: null, createdAt: iso("2026-03-01"), updatedAt: iso("2026-03-02") },
+    ],
+    goals: [
+      { id: "goal1", userId: aishaId, title: "Finish Strategic Workforce Planning", description: "Complete all modules and the final assessment.", targetDate: iso("2026-07-31"), priority: "HIGH", status: "ACTIVE", courseId: "c3", createdAt: iso("2026-02-02") },
+      { id: "goal2", userId: aishaId, title: "Earn my 2026 CPD certificate", description: "Reach 12 verified points before the cycle closes.", targetDate: iso("2026-12-31"), priority: "MEDIUM", status: "ACTIVE", courseId: null, createdAt: iso("2026-01-20") },
     ],
     organizations,
     staff,
@@ -620,6 +724,30 @@ function buildOverview(db: DB, oid: string) {
   return { totalSessions, totalAllocated, completionRate, totalBudget: fmtUGX(totalBudget), byDepartment, participation, audit };
 }
 
+function noteView(db: DB, n: DbNote) {
+  const course = n.courseId ? db.courses.find((c) => c.id === n.courseId) : null;
+  return {
+    id: n.id, title: n.title, tags: n.tags, body: n.body,
+    courseId: n.courseId, courseTitle: course?.title ?? null,
+    lessonId: n.lessonId, lessonTitle: n.courseId && n.lessonId ? lessonTitleOf(n.courseId, n.lessonId) : null,
+    createdAt: n.createdAt, updatedAt: n.updatedAt,
+  };
+}
+
+function goalView(db: DB, userId: string, g: DbGoal) {
+  const course = g.courseId ? db.courses.find((c) => c.id === g.courseId) : null;
+  let linkedProgress = null;
+  if (g.courseId) {
+    const e = db.enrollments.find((x) => x.userId === userId && x.courseId === g.courseId);
+    if (e) linkedProgress = progressOf(e);
+  }
+  return {
+    id: g.id, title: g.title, description: g.description, targetDate: g.targetDate,
+    priority: g.priority, status: g.status, courseId: g.courseId, courseTitle: course?.title ?? null,
+    linkedProgress, createdAt: g.createdAt,
+  };
+}
+
 // ---- Router ----------------------------------------------------------------
 
 export async function handle(method: string, path: string, body: unknown): Promise<unknown> {
@@ -740,10 +868,152 @@ export async function handle(method: string, path: string, body: unknown): Promi
     if (!db.courses.find((c) => c.id === courseId)) throw { status: 404, error: "Course not found" };
     const existing = db.enrollments.find((e) => e.userId === user.id && e.courseId === courseId);
     if (existing) return { enrollment: existing, alreadyEnrolled: true };
-    const enrollment = { id: uid("en_"), userId: user.id, courseId, status: "ENROLLED", createdAt: new Date().toISOString() };
+    const enrollment: DbEnrollment = { id: uid("en_"), userId: user.id, courseId, status: "NOT_STARTED", createdAt: new Date().toISOString(), progress: [], lastLessonId: null, lastAccessedAt: null, timeSpentMin: 0 };
     db.enrollments.push(enrollment);
     save(db);
     return { enrollment };
+  }
+
+  // --- Learner: my courses ---
+  if (method === "GET" && rawPath === "/me/courses") {
+    const user = requireUser(db);
+    const list = db.enrollments
+      .filter((e) => e.userId === user.id)
+      .map((e) => {
+        const raw = db.courses.find((c) => c.id === e.courseId);
+        if (!raw) return null;
+        const course = resolveCourse(db, raw);
+        return {
+          enrollmentId: e.id, status: effStatus(e), enrolledAt: e.createdAt,
+          lastAccessedAt: e.lastAccessedAt ?? null, timeSpentMin: e.timeSpentMin ?? 0,
+          lastLessonId: e.lastLessonId ?? null, progress: progressOf(e),
+          thumb: thumbFor(e.courseId), course: courseSummary(course),
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => !!x);
+    return { courses: list };
+  }
+
+  if (method === "GET" && /^\/me\/courses\/[^/]+$/.test(rawPath)) {
+    const user = requireUser(db);
+    const courseId = rawPath.split("/")[3];
+    const e = db.enrollments.find((x) => x.userId === user.id && x.courseId === courseId);
+    if (!e) throw { status: 404, error: "You are not enrolled in this course" };
+    const raw = db.courses.find((c) => c.id === courseId);
+    if (!raw) throw { status: 404, error: "Course not found" };
+    const course = resolveCourse(db, raw);
+    const doneSet = new Set(e.progress ?? []);
+    const modules = syllabusFor(courseId).map((m) => ({
+      title: m.title,
+      lessons: m.lessons.map((l) => ({ ...l, done: doneSet.has(l.id) })),
+    }));
+    return {
+      status: effStatus(e), enrolledAt: e.createdAt, lastAccessedAt: e.lastAccessedAt ?? null,
+      timeSpentMin: e.timeSpentMin ?? 0, lastLessonId: e.lastLessonId ?? null,
+      progress: progressOf(e), thumb: thumbFor(courseId), course: courseSummary(course, true), modules,
+    };
+  }
+
+  if (method === "POST" && /^\/me\/courses\/[^/]+\/progress$/.test(rawPath)) {
+    const user = requireUser(db);
+    const courseId = rawPath.split("/")[3];
+    const e = db.enrollments.find((x) => x.userId === user.id && x.courseId === courseId);
+    if (!e) throw { status: 404, error: "You are not enrolled in this course" };
+    if (!allLessonIds(courseId).includes(String(b.lessonId))) throw { status: 400, error: "Unknown lesson" };
+    const set = new Set(e.progress ?? []);
+    if (b.done) set.add(b.lessonId); else set.delete(b.lessonId);
+    e.progress = Array.from(set);
+    e.lastLessonId = b.lessonId;
+    e.lastAccessedAt = new Date().toISOString();
+    e.timeSpentMin = (e.timeSpentMin ?? 0) + (Number(b.addMinutes) || 0);
+    if (e.status === "PAUSED") e.status = "IN_PROGRESS"; // acting resumes
+    save(db);
+    return { progress: progressOf(e), status: effStatus(e), lastLessonId: e.lastLessonId };
+  }
+
+  if (method === "PATCH" && /^\/me\/courses\/[^/]+$/.test(rawPath)) {
+    const user = requireUser(db);
+    const courseId = rawPath.split("/")[3];
+    const e = db.enrollments.find((x) => x.userId === user.id && x.courseId === courseId);
+    if (!e) throw { status: 404, error: "You are not enrolled in this course" };
+    if (b.status === "PAUSED") e.status = "PAUSED";
+    else if (b.status === "RESUME") e.status = "IN_PROGRESS";
+    if (b.addMinutes) { e.timeSpentMin = (e.timeSpentMin ?? 0) + Number(b.addMinutes); e.lastAccessedAt = new Date().toISOString(); }
+    save(db);
+    return { status: effStatus(e) };
+  }
+
+  // --- Learner: notes ---
+  if (method === "GET" && rawPath === "/me/notes") {
+    const user = requireUser(db);
+    const courseFilter = query.get("courseId");
+    let list = (db.notes ?? []).filter((n) => n.userId === user.id);
+    if (courseFilter) list = list.filter((n) => n.courseId === courseFilter);
+    list.sort((a, b2) => +new Date(b2.updatedAt) - +new Date(a.updatedAt));
+    return { notes: list.map((n) => noteView(db, n)) };
+  }
+  if (method === "POST" && rawPath === "/me/notes") {
+    const user = requireUser(db);
+    if (!b.title && !b.body) throw { status: 400, error: "Add a title or some text" };
+    const now = new Date().toISOString();
+    const n: DbNote = { id: uid("note_"), userId: user.id, title: b.title ?? "", tags: Array.isArray(b.tags) ? b.tags : [], body: b.body ?? "", courseId: b.courseId ?? null, lessonId: b.lessonId ?? null, createdAt: now, updatedAt: now };
+    (db.notes ??= []).push(n);
+    save(db);
+    return { note: noteView(db, n) };
+  }
+  if (method === "PATCH" && /^\/me\/notes\/[^/]+$/.test(rawPath)) {
+    const user = requireUser(db);
+    const id = rawPath.split("/")[3];
+    const n = (db.notes ?? []).find((x) => x.id === id && x.userId === user.id);
+    if (!n) throw { status: 404, error: "Note not found" };
+    for (const k of ["title", "body", "courseId", "lessonId"] as const) if (b[k] !== undefined) (n as any)[k] = b[k];
+    if (b.tags !== undefined) n.tags = Array.isArray(b.tags) ? b.tags : [];
+    n.updatedAt = new Date().toISOString();
+    save(db);
+    return { note: noteView(db, n) };
+  }
+  if (method === "DELETE" && /^\/me\/notes\/[^/]+$/.test(rawPath)) {
+    const user = requireUser(db);
+    const id = rawPath.split("/")[3];
+    if (!(db.notes ?? []).some((x) => x.id === id && x.userId === user.id)) throw { status: 404, error: "Note not found" };
+    db.notes = (db.notes ?? []).filter((x) => x.id !== id);
+    save(db);
+    return { ok: true };
+  }
+
+  // --- Learner: goals ---
+  if (method === "GET" && rawPath === "/me/goals") {
+    const user = requireUser(db);
+    const list = (db.goals ?? [])
+      .filter((g) => g.userId === user.id)
+      .sort((a, b2) => +new Date(b2.createdAt) - +new Date(a.createdAt));
+    return { goals: list.map((g) => goalView(db, user.id, g)) };
+  }
+  if (method === "POST" && rawPath === "/me/goals") {
+    const user = requireUser(db);
+    if (!b.title) throw { status: 400, error: "A goal needs a title" };
+    const g: DbGoal = { id: uid("goal_"), userId: user.id, title: b.title, description: b.description ?? "", targetDate: b.targetDate ? iso(b.targetDate) : null, priority: b.priority ?? "MEDIUM", status: "ACTIVE", courseId: b.courseId ?? null, createdAt: new Date().toISOString() };
+    (db.goals ??= []).push(g);
+    save(db);
+    return { goal: goalView(db, user.id, g) };
+  }
+  if (method === "PATCH" && /^\/me\/goals\/[^/]+$/.test(rawPath)) {
+    const user = requireUser(db);
+    const id = rawPath.split("/")[3];
+    const g = (db.goals ?? []).find((x) => x.id === id && x.userId === user.id);
+    if (!g) throw { status: 404, error: "Goal not found" };
+    for (const k of ["title", "description", "priority", "status", "courseId"] as const) if (b[k] !== undefined) (g as any)[k] = b[k];
+    if (b.targetDate !== undefined) g.targetDate = b.targetDate ? iso(b.targetDate) : null;
+    save(db);
+    return { goal: goalView(db, user.id, g) };
+  }
+  if (method === "DELETE" && /^\/me\/goals\/[^/]+$/.test(rawPath)) {
+    const user = requireUser(db);
+    const id = rawPath.split("/")[3];
+    if (!(db.goals ?? []).some((x) => x.id === id && x.userId === user.id)) throw { status: 404, error: "Goal not found" };
+    db.goals = (db.goals ?? []).filter((x) => x.id !== id);
+    save(db);
+    return { ok: true };
   }
 
   // --- Record ---

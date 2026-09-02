@@ -3,8 +3,9 @@ import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { Badge, EmptyState, ProgressRing, StatusPill } from "../components/ui";
+import { Thumb, ProgressBar } from "../components/learn";
 import { entryTypeLabel, formatDate, pointsLabel } from "../lib/format";
-import type { CpdEntry, CycleSummary } from "../lib/types";
+import type { CpdEntry, CycleSummary, MemberCourse } from "../lib/types";
 
 interface DashboardData {
   summary: CycleSummary;
@@ -15,13 +16,19 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [myCourses, setMyCourses] = useState<MemberCourse[]>([]);
 
   useEffect(() => {
     api
       .get<DashboardData>("/cpd/dashboard")
       .then(setData)
       .catch(() => setError("Could not load your dashboard"));
+    api.get<{ courses: MemberCourse[] }>("/me/courses").then((r) => setMyCourses(r.courses)).catch(() => {});
   }, []);
+
+  const continueCourse = [...myCourses]
+    .filter((c) => c.status !== "COMPLETED")
+    .sort((a, b) => +new Date(b.lastAccessedAt ?? b.enrolledAt) - +new Date(a.lastAccessedAt ?? a.enrolledAt))[0];
 
   if (error) return <EmptyState title={error} />;
   if (!data) return <DashboardSkeleton />;
@@ -94,6 +101,33 @@ export default function Dashboard() {
           sub={`${summary.counts.VERIFIED} verified · ${summary.counts.PENDING} pending · ${summary.counts.NEEDS_PROOF} needs proof`}
         />
       </div>
+
+      {/* Continue learning */}
+      {myCourses.length > 0 && (
+        <div className="card p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-serif text-xl font-semibold text-ink">Continue learning</h2>
+            <Link to="/app/courses" className="text-sm font-semibold text-teal hover:underline">My courses →</Link>
+          </div>
+          {continueCourse ? (
+            <div className="flex flex-wrap items-center gap-4">
+              <Link to={`/app/courses/${continueCourse.course.id}`} className="w-20 shrink-0 overflow-hidden rounded-xl">
+                <Thumb thumb={continueCourse.thumb} title={continueCourse.course.title} className="h-16" />
+              </Link>
+              <div className="min-w-0 flex-1">
+                <Link to={`/app/courses/${continueCourse.course.id}`} className="font-serif text-lg font-semibold text-ink hover:underline">{continueCourse.course.title}</Link>
+                <div className="text-[12.5px] text-muted">{continueCourse.course.provider}</div>
+                <div className="mt-2 max-w-md"><ProgressBar progress={continueCourse.progress} /></div>
+              </div>
+              <Link to={`/app/courses/${continueCourse.course.id}`} className="btn-primary px-4 py-2 text-[13px]">
+                {continueCourse.status === "NOT_STARTED" ? "Start" : "Continue"}
+              </Link>
+            </div>
+          ) : (
+            <p className="text-sm text-muted">You've completed all your enrolled courses. 🎉 <Link to="/app/marketplace" className="font-semibold text-teal hover:underline">Find another →</Link></p>
+          )}
+        </div>
+      )}
 
       {/* Recent activity */}
       <div className="card p-6">

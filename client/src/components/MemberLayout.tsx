@@ -4,8 +4,11 @@ import { Logo } from "./ui";
 
 const NAV = [
   { to: "/app", label: "Dashboard", end: true },
-  { to: "/app/history", label: "History", end: false },
+  { to: "/app/courses", label: "My Courses", end: false },
+  { to: "/app/notes", label: "My Notes", end: false },
+  { to: "/app/goals", label: "My Goals", end: false },
   { to: "/app/marketplace", label: "Marketplace", end: false },
+  { to: "/app/history", label: "History", end: false },
   { to: "/app/record", label: "My record", end: false },
 ];
 

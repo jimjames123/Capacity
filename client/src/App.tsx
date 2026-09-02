@@ -11,6 +11,10 @@ import History from "./pages/History";
 import Marketplace from "./pages/Marketplace";
 import CourseDetail from "./pages/CourseDetail";
 import Record from "./pages/Record";
+import MyCourses from "./pages/MyCourses";
+import CourseLearn from "./pages/CourseLearn";
+import MyNotes from "./pages/MyNotes";
+import MyGoals from "./pages/MyGoals";
 import AdminOverview from "./pages/admin/AdminOverview";
 import AdminQueue from "./pages/admin/AdminQueue";
 import AdminMembers from "./pages/admin/AdminMembers";
@@ -112,6 +116,10 @@ export default function App() {
       >
         <Route index element={<Dashboard />} />
         <Route path="log" element={<LogActivity />} />
+        <Route path="courses" element={<MyCourses />} />
+        <Route path="courses/:id" element={<CourseLearn />} />
+        <Route path="notes" element={<MyNotes />} />
+        <Route path="goals" element={<MyGoals />} />
         <Route path="history" element={<History />} />
         <Route path="marketplace" element={<Marketplace />} />
         <Route path="marketplace/:id" element={<CourseDetail />} />

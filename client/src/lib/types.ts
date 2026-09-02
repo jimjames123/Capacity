@@ -432,6 +432,96 @@ export interface Enrollment {
   course: Course;
 }
 
+export type LearnStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "PAUSED";
+
+export interface CourseThumb {
+  from: string;
+  to: string;
+}
+
+export interface LearnProgress {
+  completed: number;
+  total: number;
+  pct: number;
+}
+
+export interface MemberCourseSummary {
+  id: string;
+  title: string;
+  provider: string;
+  profession: string;
+  format: CourseFormat;
+  fee: string;
+  schedule: string;
+  city: string | null;
+  country: string | null;
+  description?: string;
+}
+
+export interface MemberCourse {
+  enrollmentId: string;
+  status: LearnStatus;
+  enrolledAt: string;
+  lastAccessedAt: string | null;
+  timeSpentMin: number;
+  lastLessonId: string | null;
+  progress: LearnProgress;
+  thumb: CourseThumb;
+  course: MemberCourseSummary;
+}
+
+export interface Lesson {
+  id: string;
+  title: string;
+  done: boolean;
+}
+
+export interface CourseModule {
+  title: string;
+  lessons: Lesson[];
+}
+
+export interface CourseLearnDetail {
+  status: LearnStatus;
+  enrolledAt: string;
+  lastAccessedAt: string | null;
+  timeSpentMin: number;
+  lastLessonId: string | null;
+  progress: LearnProgress;
+  thumb: CourseThumb;
+  course: MemberCourseSummary;
+  modules: CourseModule[];
+}
+
+export interface LearnerNote {
+  id: string;
+  title: string;
+  tags: string[];
+  body: string;
+  courseId: string | null;
+  courseTitle: string | null;
+  lessonId: string | null;
+  lessonTitle: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type GoalPriority = "LOW" | "MEDIUM" | "HIGH";
+export type GoalStatus = "ACTIVE" | "COMPLETED" | "ARCHIVED";
+
+export interface LearningGoal {
+  id: string;
+  title: string;
+  description: string;
+  targetDate: string | null;
+  priority: GoalPriority;
+  status: GoalStatus;
+  courseId: string | null;
+  courseTitle: string | null;
+  linkedProgress: LearnProgress | null;
+  createdAt: string;
+}
+
 export interface Staff {
   id: string;
   organizationId: string;

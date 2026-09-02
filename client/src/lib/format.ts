@@ -56,6 +56,19 @@ export const COURSE_STATUS_META: Record<string, { label: string; className: stri
   REJECTED: { label: "Rejected", className: "bg-rust-soft text-rust border border-rust-line" },
 };
 
+export const LEARN_STATUS_META: Record<string, { label: string; className: string }> = {
+  NOT_STARTED: { label: "Not started", className: "bg-[#EEF2F2] text-muted border border-line" },
+  IN_PROGRESS: { label: "In progress", className: "bg-amber-soft text-amber border border-amber-line" },
+  COMPLETED: { label: "Completed", className: "bg-green-soft text-green border border-green-line" },
+  PAUSED: { label: "Paused", className: "bg-[#ECE6D8] text-[#8A6D3B] border border-[#DDCEA6]" },
+};
+
+export const GOAL_PRIORITY_META: Record<string, { label: string; className: string }> = {
+  HIGH: { label: "High", className: "bg-rust-soft text-rust border border-rust-line" },
+  MEDIUM: { label: "Medium", className: "bg-amber-soft text-amber border border-amber-line" },
+  LOW: { label: "Low", className: "bg-[#EEF2F2] text-muted border border-line" },
+};
+
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", {
     day: "numeric",

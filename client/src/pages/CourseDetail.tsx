@@ -152,9 +152,14 @@ export default function CourseDetail() {
               </div>
             )}
             {(enrollState === "done" || enrollState === "already") && (
-              <p className="mt-3 text-center text-[13px] text-green">
-                On completion, this counts as {pointsLabel(course.points)} toward your cycle.
-              </p>
+              <>
+                <Link to={`/app/courses/${course.id}`} className="btn-primary mt-3 block w-full py-2.5 text-center text-[13px]">
+                  Go to my course →
+                </Link>
+                <p className="mt-3 text-center text-[13px] text-green">
+                  On completion, this counts as {pointsLabel(course.points)} toward your cycle.
+                </p>
+              </>
             )}
           </div>
         </div>
