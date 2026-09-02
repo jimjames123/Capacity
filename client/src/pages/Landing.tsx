@@ -4,6 +4,11 @@ import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { homePathForUser } from "../lib/nav";
 import { Badge, BrandLogo, ProgressRing } from "../components/ui";
+
+/** Smooth-scroll to a section by id without touching the router hash. */
+function scrollToId(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 import { FORMAT_META, pointsLabel } from "../lib/format";
 import type { Course } from "../lib/types";
 
@@ -80,9 +85,9 @@ export default function Landing() {
         <div className="mx-auto flex h-24 max-w-6xl items-center gap-4 px-6">
           <Link to="/"><BrandLogo className="h-20 w-auto" /></Link>
           <nav className="ml-auto mr-2 hidden items-center gap-1 md:flex">
-            <a href="#courses" className="rounded-lg px-3 py-2 text-sm font-medium text-ink hover:bg-[#EEF2F2]">Courses</a>
-            <a href="#audiences" className="rounded-lg px-3 py-2 text-sm font-medium text-ink hover:bg-[#EEF2F2]">For you</a>
-            <a href="#how" className="rounded-lg px-3 py-2 text-sm font-medium text-ink hover:bg-[#EEF2F2]">How it works</a>
+            <button onClick={() => scrollToId("courses")} className="rounded-lg px-3 py-2 text-sm font-medium text-ink hover:bg-[#EEF2F2]">Courses</button>
+            <button onClick={() => scrollToId("audiences")} className="rounded-lg px-3 py-2 text-sm font-medium text-ink hover:bg-[#EEF2F2]">For you</button>
+            <button onClick={() => scrollToId("how")} className="rounded-lg px-3 py-2 text-sm font-medium text-ink hover:bg-[#EEF2F2]">How it works</button>
           </nav>
           <Link to="/signin" className="btn-ghost ml-auto md:ml-0">Log in</Link>
           <Link to="/signup" className="btn-primary">Join for free</Link>
