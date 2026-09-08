@@ -24,7 +24,7 @@ async function main() {
       membershipNo: "HRM-2024-0417",
       professionalBody: "Human Resource Managers' Association of Uganda",
       jobTitle: "Senior HR Business Partner",
-      organisation: "National Water & Sewerage Corporation",
+      organisation: "XYZ Enterprises",
       onboarded: true,
     },
   });
@@ -377,7 +377,7 @@ async function main() {
   // ---- Organizations & staff ----------------------------------------------
   const nwsc = await prisma.organization.create({
     data: {
-      name: "National Water & Sewerage Corporation",
+      name: "XYZ Enterprises",
       sector: "Public sector",
       district: "Kampala",
       contactName: "Sarah Nakimuli",
@@ -537,10 +537,10 @@ async function main() {
     },
   });
 
-  // ---- Organization login (National Water & Sewerage Corporation) ----------
+  // ---- Organization login (XYZ Enterprises) ----------
   await prisma.user.create({
     data: {
-      name: "National Water & Sewerage Corporation",
+      name: "XYZ Enterprises",
       email: "org@example.com",
       passwordHash: await bcrypt.hash("password123", 10),
       role: "ORG",

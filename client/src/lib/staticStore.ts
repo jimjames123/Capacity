@@ -23,7 +23,7 @@ import type {
 } from "./types";
 
 // Bump when the seed shape changes so returning visitors get fresh demo data.
-const LS_KEY = "cs_static_db_v11";
+const LS_KEY = "cs_static_db_v12";
 
 interface StoredUser extends User {
   password: string;
@@ -353,7 +353,7 @@ function seed(): DB {
       membershipNo: "HRM-2024-0417",
       professionalBody: "Human Resource Managers' Association of Uganda",
       jobTitle: "Senior HR Business Partner",
-      organisation: "National Water & Sewerage Corporation",
+      organisation: "XYZ Enterprises",
       onboarded: true,
       createdAt: iso("2025-11-01"),
     },
@@ -390,7 +390,7 @@ function seed(): DB {
       id: "u_org",
       email: "org@example.com",
       password: "password123",
-      name: "National Water & Sewerage Corporation",
+      name: "XYZ Enterprises",
       role: "ORG",
       profession: null,
       membershipNo: null,
@@ -439,7 +439,7 @@ function seed(): DB {
   ];
 
   const organizations: DB["organizations"] = [
-    { id: "org_nwsc", name: "National Water & Sewerage Corporation", sector: "Public sector", district: "Kampala", contactName: "Sarah Nakimuli", contactEmail: "hr@nwsc.example.ug", contactPhone: "+256 414 315 000" },
+    { id: "org_nwsc", name: "XYZ Enterprises", sector: "Public sector", district: "Kampala", contactName: "Sarah Nakimuli", contactEmail: "hr@nwsc.example.ug", contactPhone: "+256 414 315 000" },
     { id: "org_stanbic", name: "Stanbic Bank Uganda", sector: "Financial services", district: "Kampala", contactName: "David Ochieng", contactEmail: "people@stanbic.example.ug", contactPhone: "+256 312 224 600" },
     { id: "org_ura", name: "Uganda Revenue Authority", sector: "Public sector", district: "Kampala", contactName: "Grace Atim", contactEmail: "training@ura.example.ug", contactPhone: "+256 417 442 097" },
   ];
