@@ -103,7 +103,7 @@ export default function Landing() {
               Uganda's public CPD platform
             </Badge>
             <h1 className="mt-5 text-balance font-serif text-4xl font-bold leading-[1.08] tracking-[-1px] text-ink sm:text-5xl">
-              Learn the skills that keep your licence — and prove it.
+              Learn the skills that improve your performance — and show it.
             </h1>
             <p className="mt-5 max-w-lg text-[17px] leading-relaxed text-[#2E3B3F]">
               Track your CPD, discover accredited courses from trusted trainers,
