@@ -871,9 +871,16 @@ export async function handle(method: string, path: string, body: unknown): Promi
   if (method === "GET" && rawPath === "/courses") {
     const prof = query.get("profession");
     const fmt = query.get("format");
+    const q = (query.get("q") ?? "").trim().toLowerCase();
     let list = db.courses.filter((c) => c.status === "APPROVED").map((c) => resolveCourse(db, c));
     if (prof && prof !== "All") list = list.filter((c) => c.profession === prof);
     if (fmt && fmt !== "All") list = list.filter((c) => c.format === fmt);
+    if (q) {
+      list = list.filter((c) =>
+        [c.title, c.description, c.provider.name, c.city ?? "", c.country ?? ""]
+          .some((f) => String(f).toLowerCase().includes(q)),
+      );
+    }
     list.sort((a, b2) => b2.rating - a.rating);
     return { courses: list, count: list.length };
   }
@@ -888,9 +895,11 @@ export async function handle(method: string, path: string, body: unknown): Promi
   if (method === "POST" && /^\/courses\/[^/]+\/enroll$/.test(rawPath)) {
     const user = requireUser(db);
     const courseId = rawPath.split("/")[2];
-    if (!db.courses.find((c) => c.id === courseId)) throw { status: 404, error: "Course not found" };
+    const course = db.courses.find((c) => c.id === courseId);
+    if (!course) throw { status: 404, error: "Course not found" };
     const existing = db.enrollments.find((e) => e.userId === user.id && e.courseId === courseId);
     if (existing) return { enrollment: existing, alreadyEnrolled: true };
+    if (course.seats <= 0) throw { status: 400, error: "This course is fully booked — join the waitlist instead" };
     const enrollment: DbEnrollment = { id: uid("en_"), userId: user.id, courseId, status: "NOT_STARTED", createdAt: new Date().toISOString(), progress: [], lastLessonId: null, lastAccessedAt: null, timeSpentMin: 0 };
     db.enrollments.push(enrollment);
     save(db);
@@ -1084,110 +1093,6 @@ export async function handle(method: string, path: string, body: unknown): Promi
       };
     });
     return { holder: { name: user.name, membershipNo: user.membershipNo, professionalBody: user.professionalBody }, records };
-  }
-
-  // --- Admin ---
-  if (method === "GET" && rawPath === "/admin/overview") {
-    requireAdmin(db);
-    const byStatus = { VERIFIED: 0, PENDING: 0, NEEDS_PROOF: 0, REJECTED: 0 };
-    for (const e of db.entries) byStatus[e.status] += 1;
-    return {
-      stats: {
-        members: db.users.filter((u) => u.role === "MEMBER").length,
-        providers: db.providers.length,
-        courses: db.courses.length,
-        certificatesIssued: db.cycles.filter((c) => (c as unknown as { certRef: string | null }).certRef).length,
-        awaitingReview: byStatus.PENDING,
-        needsProof: byStatus.NEEDS_PROOF,
-        verified: byStatus.VERIFIED,
-        rejected: byStatus.REJECTED,
-      },
-    };
-  }
-
-  if (method === "GET" && rawPath === "/admin/members") {
-    requireAdmin(db);
-    const members = db.users.filter((u) => u.role === "MEMBER");
-    return {
-      members: members.map((m) => {
-        const cycle = db.cycles.find((c) => c.userId === m.id && c.isCurrent);
-        const entries = cycle ? db.entries.filter((e) => e.cycleId === cycle.id) : [];
-        const summary = cycle ? buildSummary(cycle, entries) : null;
-        return {
-          id: m.id,
-          name: m.name,
-          email: m.email,
-          profession: m.profession,
-          membershipNo: m.membershipNo,
-          professionalBody: m.professionalBody,
-          cycleLabel: cycle?.label ?? null,
-          earnedPoints: summary?.earnedPoints ?? 0,
-          requiredPoints: summary?.requiredPoints ?? 0,
-          percentComplete: summary?.percentComplete ?? 0,
-          pendingCount: entries.filter((e) => e.status === "PENDING" || e.status === "NEEDS_PROOF").length,
-        };
-      }),
-    };
-  }
-
-  if (method === "GET" && rawPath.startsWith("/admin/members/")) {
-    requireAdmin(db);
-    const mid = rawPath.split("/")[3];
-    const member = db.users.find((u) => u.id === mid && u.role === "MEMBER");
-    if (!member) throw { status: 404, error: "Member not found" };
-    const cycles = db.cycles
-      .filter((c) => c.userId === mid)
-      .sort((a, b2) => +new Date(b2.startDate) - +new Date(a.startDate));
-    return {
-      member: {
-        id: member.id, name: member.name, email: member.email,
-        profession: member.profession, membershipNo: member.membershipNo,
-        professionalBody: member.professionalBody, jobTitle: member.jobTitle,
-        organisation: member.organisation,
-      },
-      cycles: cycles.map((c) => {
-        const entries = db.entries.filter((e) => e.cycleId === c.id).sort(byDateDesc);
-        const anyC = c as unknown as { certRef: string | null; registrarName: string | null; issuedAt: string | null };
-        return { ...buildSummary(c, entries), certRef: anyC.certRef, registrarName: anyC.registrarName, issuedAt: anyC.issuedAt, entries };
-      }),
-    };
-  }
-
-  if (method === "GET" && rawPath === "/admin/queue") {
-    requireAdmin(db);
-    const items = db.entries
-      .filter((e) => e.status === "PENDING" || e.status === "NEEDS_PROOF")
-      .sort((a, b2) => +new Date(a.createdAt) - +new Date(b2.createdAt));
-    return {
-      queue: items.map((e) => {
-        const m = db.users.find((u) => u.id === e.userId)!;
-        return {
-          id: e.id, title: e.title, type: e.type, activityDate: e.activityDate,
-          pointsClaimed: e.pointsClaimed, status: e.status, proofFileName: e.proofFileName, note: e.note,
-          member: { id: m.id, name: m.name, membershipNo: m.membershipNo },
-        };
-      }),
-    };
-  }
-
-  if (method === "POST" && /^\/admin\/entries\/[^/]+\/(verify|reject)$/.test(rawPath)) {
-    const admin = requireAdmin(db);
-    const parts = rawPath.split("/");
-    const eid = parts[3];
-    const action = parts[4];
-    const entry = db.entries.find((e) => e.id === eid);
-    if (!entry) throw { status: 404, error: "Entry not found" };
-    if (action === "verify" && entry.status === "NEEDS_PROOF" && !entry.proofFileName) {
-      throw { status: 400, error: "Cannot verify an entry without proof" };
-    }
-    entry.status = action === "verify" ? "VERIFIED" : "REJECTED";
-    if (action === "verify") {
-      const cycle = db.cycles.find((c) => c.id === entry.cycleId);
-      const member = db.users.find((u) => u.id === entry.userId);
-      if (cycle && member) maybeIssueCert(db, cycle, member, admin.name);
-    }
-    save(db);
-    return { entry };
   }
 
   // --- Admin: verification ---

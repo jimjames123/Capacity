@@ -28,6 +28,8 @@ export default function CourseDetail() {
       .get<{ course: Course }>(`/courses/${id}`)
       .then((r) => setCourse(r.course))
       .catch(() => setError("Course not found"));
+    // If the learner is already enrolled, surface that straight away.
+    api.get(`/me/courses/${id}`).then(() => setEnrollState("already")).catch(() => {});
     loadInquiry();
   }, [id]);
 
