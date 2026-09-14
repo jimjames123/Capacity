@@ -45,6 +45,7 @@ import OrgInhouse from "./pages/org/OrgInhouse";
 import OrgTenders from "./pages/org/OrgTenders";
 import OrgTenderDetail from "./pages/org/OrgTenderDetail";
 import OrgBookings from "./pages/org/OrgBookings";
+import OrgVenues from "./pages/org/OrgVenues";
 import OrgAnnualPlan from "./pages/org/OrgAnnualPlan";
 import OrgRecords from "./pages/org/OrgRecords";
 import OrgReports from "./pages/org/OrgReports";
@@ -183,6 +184,7 @@ export default function App() {
         <Route path="tenders" element={<OrgTenders />} />
         <Route path="tenders/:id" element={<OrgTenderDetail />} />
         <Route path="bookings" element={<OrgBookings />} />
+        <Route path="venues" element={<OrgVenues />} />
         <Route path="annual-plan" element={<OrgAnnualPlan />} />
         <Route path="records" element={<OrgRecords />} />
         <Route path="reports" element={<OrgReports />} />

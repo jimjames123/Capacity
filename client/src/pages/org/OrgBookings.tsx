@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../../lib/api";
 import { EmptyState } from "../../components/ui";
 import { Modal, ConfirmDialog } from "../../components/Modal";
+import { VenueSuggestModal } from "../../components/VenueSuggestModal";
 import { Field, SelectField, FormError } from "../../components/Field";
 import { formatDate } from "../../lib/format";
 import type { Booking } from "../../lib/types";
@@ -19,6 +20,7 @@ export default function OrgBookings() {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<Booking | null>(null);
+  const [venueFor, setVenueFor] = useState<Booking | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [statusF, setStatusF] = useState("All");
@@ -92,6 +94,20 @@ export default function OrgBookings() {
                   <div className="text-[12px] text-muted">{b.paid ? "Paid" : "Unpaid"}</div>
                 </div>
               </div>
+              {b.venueName ? (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-teal-soft bg-[#F2FAF9] px-3.5 py-2.5 text-[12.5px]">
+                  <span className="text-ink">📍 <span className="font-semibold">{b.venueName}</span>{b.venueLocation ? ` · ${b.venueLocation}` : ""}{b.venueCost ? ` · ${b.venueCost}` : ""}</span>
+                  {b.status !== "CANCELLED" && (
+                    <button onClick={() => setVenueFor(b)} className="font-semibold text-teal hover:underline">Change venue</button>
+                  )}
+                </div>
+              ) : b.status !== "CANCELLED" ? (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed border-line-strong bg-panel px-3.5 py-2.5 text-[12.5px]">
+                  <span className="text-muted">No venue chosen yet — get suggestions matched to {b.staffCount} people.</span>
+                  <button onClick={() => setVenueFor(b)} className="font-semibold text-teal hover:underline">Suggest a venue →</button>
+                </div>
+              ) : null}
+
               <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3 text-[12.5px]">
                 <span className={b.certificateIssued ? "text-green" : "text-muted"}>
                   {b.certificateIssued ? "✓ Certificates issued" : "Certificates pending"}
@@ -115,6 +131,20 @@ export default function OrgBookings() {
       {creating && <NewBooking onClose={() => setCreating(false)} onSaved={() => { setCreating(false); load(); }} />}
       {deleting && (
         <DeleteBooking b={deleting} onClose={() => setDeleting(null)} onDone={() => { setDeleting(null); load(); }} />
+      )}
+      {venueFor && (
+        <VenueSuggestModal
+          title={venueFor.title}
+          staffCount={venueFor.staffCount}
+          location={venueFor.venueLocation}
+          currentVenueId={venueFor.venueId ?? null}
+          onClose={() => setVenueFor(null)}
+          onSelect={async (venueId) => {
+            await api.patch(`/organization/bookings/${venueFor.id}`, { venueId });
+            setVenueFor(null);
+            load();
+          }}
+        />
       )}
     </div>
   );

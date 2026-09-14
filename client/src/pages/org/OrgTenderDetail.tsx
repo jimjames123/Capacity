@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, ApiError } from "../../lib/api";
 import { Badge, EmptyState, Stars } from "../../components/ui";
+import { VenueSuggestModal } from "../../components/VenueSuggestModal";
 import { BID_STATUS_META, formatDate } from "../../lib/format";
-import type { OrgTenderDetail, ReceivedBid } from "../../lib/types";
+import type { AwardedBooking, OrgTenderDetail, ReceivedBid } from "../../lib/types";
 
 const TENDER_STATUS: Record<string, string> = {
   OPEN: "bg-green-soft text-green border border-green-line",
@@ -18,12 +19,15 @@ export default function OrgTenderDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [blind, setBlind] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [awardedBooking, setAwardedBooking] = useState<AwardedBooking | null>(null);
+  const [orgLocation, setOrgLocation] = useState<string | null>(null);
+  const [showVenue, setShowVenue] = useState(false);
 
   const load = useCallback(() => {
     if (!id) return;
     api
-      .get<{ tender: OrgTenderDetail; bids: ReceivedBid[] }>(`/organization/tenders/${id}`)
-      .then((r) => { setTender(r.tender); setBids(r.bids); })
+      .get<{ tender: OrgTenderDetail; bids: ReceivedBid[]; awardedBooking: AwardedBooking | null; orgLocation: string | null }>(`/organization/tenders/${id}`)
+      .then((r) => { setTender(r.tender); setBids(r.bids); setAwardedBooking(r.awardedBooking); setOrgLocation(r.orgLocation); })
       .catch(() => setError("Tender not found"));
   }, [id]);
   useEffect(load, [load]);
@@ -69,6 +73,36 @@ export default function OrgTenderDetailPage() {
           <Detail label="Closes" value={formatDate(tender.deadline)} />
         </div>
       </div>
+
+      {/* Venue arrangement — appears once a consultant has been awarded */}
+      {awarded && awardedBooking && (
+        <div className="card border-teal-soft bg-[#F2FAF9] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🎉</span>
+                <h2 className="font-serif text-lg font-semibold text-ink">Consultant awarded — now arrange your venue</h2>
+              </div>
+              {awardedBooking.venueName ? (
+                <p className="mt-1 text-sm text-muted">
+                  Booked at <span className="font-semibold text-ink">{awardedBooking.venueName}</span>
+                  {awardedBooking.venueCost ? ` · ${awardedBooking.venueCost}` : ""}. You can change it any time.
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-muted">
+                  We've created a booking for this engagement. Pick a hotel or team-building ground matched to your {awardedBooking.staffCount}-person group{orgLocation ? ` near ${orgLocation}` : ""}.
+                </p>
+              )}
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <button onClick={() => setShowVenue(true)} className="btn-teal px-4 py-2 text-[13px]">
+                {awardedBooking.venueName ? "Change venue" : "Suggest venues"}
+              </button>
+              <Link to="/org/bookings" className="btn-ghost px-4 py-2 text-[13px]">View booking</Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bids */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -131,6 +165,21 @@ export default function OrgTenderDetailPage() {
             );
           })}
         </div>
+      )}
+
+      {showVenue && awardedBooking && (
+        <VenueSuggestModal
+          title={tender.title}
+          staffCount={awardedBooking.staffCount}
+          location={awardedBooking.venueId ? null : orgLocation}
+          currentVenueId={awardedBooking.venueId}
+          onClose={() => setShowVenue(false)}
+          onSelect={async (venueId) => {
+            await api.patch(`/organization/bookings/${awardedBooking.id}`, { venueId });
+            setShowVenue(false);
+            load();
+          }}
+        />
       )}
     </div>
   );

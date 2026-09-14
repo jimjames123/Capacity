@@ -10,6 +10,7 @@ const NAV = [
   { to: "/org/inhouse", label: "In-house", end: false },
   { to: "/org/consultants", label: "Consultants", end: false },
   { to: "/org/bookings", label: "Bookings", end: false },
+  { to: "/org/venues", label: "Venues", end: false },
   { to: "/org/tenders", label: "Tender Board", end: false },
   { to: "/org/records", label: "Activity Records", end: false },
   { to: "/org/reports", label: "Reports & Audit", end: false },

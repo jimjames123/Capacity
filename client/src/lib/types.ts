@@ -286,6 +286,39 @@ export interface Booking {
   attendance: number | null;
   certificateIssued: boolean;
   outcome: string | null;
+  bidId?: string | null;
+  venueId?: string | null;
+  venueName?: string | null;
+  venueLocation?: string | null;
+  venueCost?: string | null;
+}
+
+export interface Venue {
+  id: string;
+  name: string;
+  type: string;
+  location: string;
+  address: string;
+  capacity: number;
+  dayRate: number;
+  dayRateLabel: string;
+  perPerson: number;
+  perPersonLabel: string;
+  amenities: string[];
+  rating: number;
+  contact: string | null;
+  // Present when the query supplied a group size:
+  fits?: boolean;
+  estimate?: number;
+  estimateLabel?: string;
+}
+
+export interface AwardedBooking {
+  id: string;
+  staffCount: number;
+  venueId: string | null;
+  venueName: string | null;
+  venueCost: string | null;
 }
 
 export interface CourseQueueItem {

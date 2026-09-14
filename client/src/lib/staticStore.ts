@@ -23,7 +23,7 @@ import type {
 } from "./types";
 
 // Bump when the seed shape changes so returning visitors get fresh demo data.
-const LS_KEY = "cs_static_db_v12";
+const LS_KEY = "cs_static_db_v13";
 
 interface StoredUser extends User {
   password: string;
@@ -48,6 +48,7 @@ interface DB {
   referrals?: DbReferral[];
   recommendations?: DbRecommendation[];
   inquiries?: DbInquiry[];
+  venues?: DbVenue[];
 }
 
 interface DbInquiry {
@@ -220,6 +221,25 @@ interface DbBooking {
   certificateIssued: boolean;
   outcome: string | null;
   createdAt: string;
+  bidId?: string | null; // set when the booking was created by awarding a tender
+  venueId?: string | null;
+  venueName?: string | null;
+  venueLocation?: string | null;
+  venueCost?: string | null;
+}
+
+interface DbVenue {
+  id: string;
+  name: string;
+  type: string; // Hotel & conference | Resort | Team-building ground | Conference centre
+  location: string; // district / town
+  address: string;
+  capacity: number; // max delegates
+  dayRate: number; // full-day venue/hall hire (UGX)
+  perPerson: number; // day-delegate rate per person per day (UGX)
+  amenities: string[];
+  rating: number;
+  contact: string | null;
 }
 
 const PROVIDER_SEED: Provider[] = [
@@ -512,7 +532,7 @@ function seed(): DB {
     tenders,
     bids,
     bookings: [
-      { id: "bk1", organizationId: "org_nwsc", title: "Strategic Workforce Planning", providerName: "Makerere Executive Institute", category: "HR", staffCount: 8, date: iso("2026-03-12"), cost: "UGX 2,800,000", paid: true, status: "COMPLETED", attendance: 8, certificateIssued: true, outcome: "All participants completed; 3 CPD points awarded each.", createdAt: iso("2026-02-20") },
+      { id: "bk1", organizationId: "org_nwsc", title: "Strategic Workforce Planning", providerName: "Makerere Executive Institute", category: "HR", staffCount: 8, date: iso("2026-03-12"), cost: "UGX 2,800,000", paid: true, status: "COMPLETED", attendance: 8, certificateIssued: true, outcome: "All participants completed; 3 CPD points awarded each.", createdAt: iso("2026-02-20"), venueId: "v_protea", venueName: "Protea Hotel by Marriott Kampala", venueLocation: "Kampala", venueCost: "UGX 1,800,000" },
       { id: "bk2", organizationId: "org_nwsc", title: "IFRS Update & Practical Application 2026", providerName: "Deloitte Uganda Academy", category: "Finance", staffCount: 5, date: iso("2026-04-18"), cost: "UGX 2,400,000", paid: true, status: "COMPLETED", attendance: 4, certificateIssued: true, outcome: "One deferral; certificates issued to attendees.", createdAt: iso("2026-03-25") },
       { id: "bk3", organizationId: "org_nwsc", title: "Structural Integrity & Safety Auditing", providerName: "Uganda Institute of Applied Professionals", category: "Engineering", staffCount: 6, date: iso("2026-06-04"), cost: "UGX 3,720,000", paid: false, status: "SCHEDULED", attendance: null, certificateIssued: false, outcome: null, createdAt: iso("2026-04-30") },
       { id: "bk4", organizationId: "org_nwsc", title: "Leading Change in Public Institutions", providerName: "Dr. Grace Ssembatya", category: "Cross-industry", staffCount: 12, date: iso("2026-07-22"), cost: "UGX 6,480,000", paid: false, status: "SCHEDULED", attendance: null, certificateIssued: false, outcome: null, createdAt: iso("2026-05-10") },
@@ -539,6 +559,7 @@ function seed(): DB {
     inquiries: [
       { id: "inq_seed1", scope: "COURSE", refId: "c5", providerId: "p4", consultantName: null, fromUserId: "u_m3", fromOrgId: null, fromName: "Samuel Opio", fromEmail: "samuel@example.com", message: "This cohort is fully booked — do you plan to run Digital Marketing Analytics again this quarter? I'd love to join the next one.", requestedSeats: null, waitlist: true, status: "OPEN", response: null, createdAt: iso("2026-05-02"), respondedAt: null },
     ],
+    venues: VENUE_SEED.map((v) => ({ ...v })),
   };
 }
 
@@ -680,6 +701,91 @@ function publicUser(u: StoredUser): User {
 
 function fmtUGX(n: number): string {
   return `UGX ${Math.round(n).toLocaleString("en-US")}`;
+}
+
+// ---- Venues (hotels & team-building grounds) --------------------------------
+
+const VENUE_SEED: DbVenue[] = [
+  {
+    id: "v_speke", name: "Speke Resort Munyonyo", type: "Hotel & conference",
+    location: "Kampala", address: "Munyonyo, Kampala", capacity: 500,
+    dayRate: 3_500_000, perPerson: 180_000, rating: 4.8, contact: "events@spekeresort.com",
+    amenities: ["Conference halls", "Free Wi-Fi", "Full catering", "Lakeside grounds", "On-site accommodation", "Ample parking"],
+  },
+  {
+    id: "v_serena", name: "Kampala Serena Hotel", type: "Hotel & conference",
+    location: "Kampala", address: "Kintu Road, Nakasero, Kampala", capacity: 400,
+    dayRate: 4_000_000, perPerson: 220_000, rating: 4.9, contact: "conferences@serena.co.ug",
+    amenities: ["Business centre", "AV equipment", "Fine dining", "Free Wi-Fi", "Breakout rooms", "Secure parking"],
+  },
+  {
+    id: "v_lakevic", name: "Lake Victoria Serena Golf Resort & Spa", type: "Resort",
+    location: "Wakiso", address: "Kigo, Wakiso", capacity: 300,
+    dayRate: 3_200_000, perPerson: 190_000, rating: 4.7, contact: "reservations@lakevictoriaserena.com",
+    amenities: ["Lakeside lawns", "Golf course", "Spa", "Team-building space", "Accommodation", "Catering"],
+  },
+  {
+    id: "v_imperial", name: "Imperial Resort Beach Hotel", type: "Resort",
+    location: "Entebbe", address: "Berkeley Road, Entebbe", capacity: 350,
+    dayRate: 2_500_000, perPerson: 140_000, rating: 4.4, contact: "events@imperialhotels.co.ug",
+    amenities: ["Beachfront", "Conference hall", "Swimming pool", "Catering", "Parking"],
+  },
+  {
+    id: "v_africana", name: "Hotel Africana", type: "Hotel & conference",
+    location: "Kampala", address: "Wampewo Avenue, Kampala", capacity: 600,
+    dayRate: 2_800_000, perPerson: 130_000, rating: 4.2, contact: "sales@hotelafricana.com",
+    amenities: ["Large auditorium", "Breakout rooms", "Catering", "Free Wi-Fi", "Pool", "Parking"],
+  },
+  {
+    id: "v_protea", name: "Protea Hotel by Marriott Kampala", type: "Hotel & conference",
+    location: "Kampala", address: "Kabira, Bukoto, Kampala", capacity: 150,
+    dayRate: 1_800_000, perPerson: 150_000, rating: 4.5, contact: "reservations@proteakampala.com",
+    amenities: ["Meeting rooms", "AV equipment", "Catering", "Free Wi-Fi", "Parking"],
+  },
+  {
+    id: "v_griffin", name: "Griffin Falls Camp", type: "Team-building ground",
+    location: "Buikwe", address: "Mabira Forest, Buikwe", capacity: 120,
+    dayRate: 1_500_000, perPerson: 95_000, rating: 4.6, contact: "info@griffinfallscamp.com",
+    amenities: ["Zip-lining", "Nature walks", "Bonfire", "Camping", "Catering", "Facilitated games"],
+  },
+  {
+    id: "v_onelove", name: "One Love Beach Busabala", type: "Team-building ground",
+    location: "Kampala", address: "Busabala Road, Kampala", capacity: 200,
+    dayRate: 1_200_000, perPerson: 70_000, rating: 4.1, contact: "bookings@onelovebeach.ug",
+    amenities: ["Beach games", "Open grounds", "Swimming pool", "Catering", "Live stage"],
+  },
+  {
+    id: "v_kingfisher", name: "Kingfisher Safaris Resort", type: "Resort",
+    location: "Jinja", address: "Bugungu, Jinja", capacity: 180,
+    dayRate: 1_600_000, perPerson: 110_000, rating: 4.3, contact: "reservations@kingfisherjinja.com",
+    amenities: ["Lakeside grounds", "Team-building lawns", "Pool", "Accommodation", "Catering"],
+  },
+  {
+    id: "v_wildwaters", name: "Wildwaters Lodge, Jinja", type: "Team-building ground",
+    location: "Jinja", address: "Kalagala Falls, River Nile, Jinja", capacity: 100,
+    dayRate: 1_900_000, perPerson: 130_000, rating: 4.7, contact: "stay@wildwaterslodge.com",
+    amenities: ["Riverside island", "Adventure activities", "Bonfire", "Catering", "Facilitated games"],
+  },
+];
+
+/** Estimated one-day cost for a group of the given size at a venue. */
+function venueEstimate(v: DbVenue, staff: number): number {
+  const s = Math.max(1, staff || 1);
+  return Math.max(v.dayRate, v.perPerson * s);
+}
+
+function venueView(v: DbVenue, staff?: number) {
+  const base = {
+    id: v.id, name: v.name, type: v.type, location: v.location, address: v.address,
+    capacity: v.capacity, dayRate: v.dayRate, dayRateLabel: fmtUGX(v.dayRate),
+    perPerson: v.perPerson, perPersonLabel: fmtUGX(v.perPerson),
+    amenities: v.amenities, rating: v.rating, contact: v.contact,
+  };
+  if (staff && staff > 0) {
+    const est = venueEstimate(v, staff);
+    return { ...base, fits: v.capacity >= staff, estimate: est, estimateLabel: fmtUGX(est) };
+  }
+  return base;
 }
 
 /** Budget attributable to a planned session, per its cost basis. */
@@ -1746,9 +1852,16 @@ export async function handle(method: string, path: string, body: unknown): Promi
           provider: { id: x.providerId, name: p?.name ?? "Provider", initials: p?.initials ?? "?", type: p?.type ?? "", rating: p?.rating ?? 0, verified: p?.verified ?? false },
         };
       });
+    const acceptedBid = db.bids.find((x) => x.tenderId === id && x.status === "ACCEPTED");
+    const awardedBk = acceptedBid ? db.bookings.find((bk) => bk.bidId === acceptedBid.id) : null;
+    const org = db.organizations.find((o) => o.id === oid);
     return {
       tender: { id: t.id, title: t.title, description: t.description, category: t.category, deliveryMode: t.deliveryMode, budget: t.budget, seats: t.seats, deadline: t.deadline, status: t.status },
       bids,
+      awardedBooking: awardedBk
+        ? { id: awardedBk.id, staffCount: awardedBk.staffCount, venueId: awardedBk.venueId ?? null, venueName: awardedBk.venueName ?? null, venueCost: awardedBk.venueCost ?? null }
+        : null,
+      orgLocation: org?.district ?? null,
     };
   }
 
@@ -1783,6 +1896,7 @@ export async function handle(method: string, path: string, body: unknown): Promi
     const tender = bid ? db.tenders.find((t) => t.id === bid.tenderId) : null;
     if (!bid || !tender || tender.organizationId !== oid) throw { status: 404, error: "Bid not found" };
     bid.status = b.status;
+    let bookingId: string | null = null;
     if (b.status === "ACCEPTED") {
       tender.status = "AWARDED";
       for (const other of db.bids) {
@@ -1790,9 +1904,27 @@ export async function handle(method: string, path: string, body: unknown): Promi
           other.status = "REJECTED";
         }
       }
+      // Finalising with a consultant creates the engagement booking, so the
+      // organisation can immediately arrange a venue for it.
+      const existing = db.bookings.find((bk) => bk.bidId === bid.id);
+      if (existing) {
+        bookingId = existing.id;
+      } else {
+        const prov = db.providers.find((p) => p.id === bid.providerId);
+        const bk: DbBooking = {
+          id: uid("bk_"), organizationId: oid, title: tender.title,
+          providerName: prov?.name ?? null, category: tender.category ?? null,
+          staffCount: Number(tender.seats) || 20, date: tender.deadline,
+          cost: bid.amount, paid: false, status: "SCHEDULED", attendance: null,
+          certificateIssued: false, outcome: null, createdAt: new Date().toISOString(),
+          bidId: bid.id, venueId: null, venueName: null, venueLocation: null, venueCost: null,
+        };
+        db.bookings.push(bk);
+        bookingId = bk.id;
+      }
     }
     save(db);
-    return { ok: true };
+    return { ok: true, bookingId };
   }
 
   if (method === "GET" && rawPath === "/organization/reports") {
@@ -1890,6 +2022,16 @@ export async function handle(method: string, path: string, body: unknown): Promi
     if (b.paid !== undefined) bk.paid = !!b.paid;
     if (b.attendance !== undefined) bk.attendance = Number(b.attendance);
     if (b.certificateIssued !== undefined) bk.certificateIssued = !!b.certificateIssued;
+    if (b.venueId !== undefined) {
+      if (!b.venueId) {
+        bk.venueId = null; bk.venueName = null; bk.venueLocation = null; bk.venueCost = null;
+      } else {
+        const v = (db.venues ?? []).find((x) => x.id === b.venueId);
+        if (!v) throw { status: 404, error: "Venue not found" };
+        bk.venueId = v.id; bk.venueName = v.name; bk.venueLocation = v.location;
+        bk.venueCost = fmtUGX(venueEstimate(v, bk.staffCount));
+      }
+    }
     save(db);
     return { ok: true };
   }
@@ -1900,6 +2042,53 @@ export async function handle(method: string, path: string, body: unknown): Promi
     db.bookings = db.bookings.filter((x) => x.id !== id);
     save(db);
     return { ok: true };
+  }
+
+  // --- Organization: venues (hotels & team-building grounds) ---
+  if (method === "GET" && rawPath === "/organization/venues") {
+    requireOrg(db);
+    const all = db.venues ?? [];
+    const q = (query.get("q") ?? "").trim().toLowerCase();
+    const type = query.get("type");
+    const loc = query.get("location");
+    const minCap = Number(query.get("minCapacity") ?? "0") || 0;
+    const staff = Number(query.get("staff") ?? "0") || 0;
+    const suggest = query.get("suggest") === "true";
+    const limit = Number(query.get("limit") ?? "0") || 0;
+
+    let list = all.slice();
+    if (type && type !== "All") list = list.filter((v) => v.type === type);
+    if (loc && loc !== "All") list = list.filter((v) => v.location === loc);
+    if (minCap) list = list.filter((v) => v.capacity >= minCap);
+    if (q) {
+      list = list.filter((v) =>
+        [v.name, v.type, v.location, v.address, ...v.amenities].some((f) => String(f).toLowerCase().includes(q)),
+      );
+    }
+
+    if (suggest) {
+      // Rank venues that fit the group first, then by rating, then by cheapest estimate.
+      if (staff) list = list.filter((v) => v.capacity >= staff);
+      if (loc && loc !== "All") {
+        // Prefer venues in the requested location but keep the rest as fallbacks.
+        list.sort((a, b2) => {
+          const la = a.location === loc ? 0 : 1;
+          const lb = b2.location === loc ? 0 : 1;
+          if (la !== lb) return la - lb;
+          if (b2.rating !== a.rating) return b2.rating - a.rating;
+          return venueEstimate(a, staff) - venueEstimate(b2, staff);
+        });
+      } else {
+        list.sort((a, b2) => (b2.rating - a.rating) || (venueEstimate(a, staff) - venueEstimate(b2, staff)));
+      }
+    } else {
+      list.sort((a, b2) => b2.rating - a.rating);
+    }
+
+    if (limit && list.length > limit) list = list.slice(0, limit);
+    const types = Array.from(new Set(all.map((v) => v.type)));
+    const locations = Array.from(new Set(all.map((v) => v.location))).sort();
+    return { venues: list.map((v) => venueView(v, staff)), types, locations };
   }
 
   // --- Organization: departments ---
