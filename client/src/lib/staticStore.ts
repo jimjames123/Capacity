@@ -788,6 +788,52 @@ function venueView(v: DbVenue, staff?: number) {
   return base;
 }
 
+/** Shared venue search/suggest used by both the org and provider consoles. */
+function listVenues(db: DB, query: URLSearchParams) {
+  const all = db.venues ?? [];
+  const q = (query.get("q") ?? "").trim().toLowerCase();
+  const type = query.get("type");
+  const loc = query.get("location");
+  const minCap = Number(query.get("minCapacity") ?? "0") || 0;
+  const staff = Number(query.get("staff") ?? "0") || 0;
+  const suggest = query.get("suggest") === "true";
+  const limit = Number(query.get("limit") ?? "0") || 0;
+
+  let list = all.slice();
+  if (type && type !== "All") list = list.filter((v) => v.type === type);
+  if (loc && loc !== "All") list = list.filter((v) => v.location === loc);
+  if (minCap) list = list.filter((v) => v.capacity >= minCap);
+  if (q) {
+    list = list.filter((v) =>
+      [v.name, v.type, v.location, v.address, ...v.amenities].some((f) => String(f).toLowerCase().includes(q)),
+    );
+  }
+
+  if (suggest) {
+    // Rank venues that fit the group first, then by rating, then by cheapest estimate.
+    if (staff) list = list.filter((v) => v.capacity >= staff);
+    if (loc && loc !== "All") {
+      // Prefer venues in the requested location but keep the rest as fallbacks.
+      list.sort((a, b2) => {
+        const la = a.location === loc ? 0 : 1;
+        const lb = b2.location === loc ? 0 : 1;
+        if (la !== lb) return la - lb;
+        if (b2.rating !== a.rating) return b2.rating - a.rating;
+        return venueEstimate(a, staff) - venueEstimate(b2, staff);
+      });
+    } else {
+      list.sort((a, b2) => (b2.rating - a.rating) || (venueEstimate(a, staff) - venueEstimate(b2, staff)));
+    }
+  } else {
+    list.sort((a, b2) => b2.rating - a.rating);
+  }
+
+  if (limit && list.length > limit) list = list.slice(0, limit);
+  const types = Array.from(new Set(all.map((v) => v.type)));
+  const locations = Array.from(new Set(all.map((v) => v.location))).sort();
+  return { venues: list.map((v) => venueView(v, staff)), types, locations };
+}
+
 /** Budget attributable to a planned session, per its cost basis. */
 function sessionBudget(p: DbPlanned): number {
   if (p.costBasis.startsWith("Internal")) return 0;
@@ -1628,6 +1674,12 @@ export async function handle(method: string, path: string, body: unknown): Promi
     return { ok: true };
   }
 
+  // --- Provider: venues (browse for their own events) ---
+  if (method === "GET" && rawPath === "/provider/venues") {
+    requireProvider(db);
+    return listVenues(db, query);
+  }
+
   // --- Provider: profile (editable) ---
   if (method === "GET" && rawPath === "/provider/profile") {
     const pid = requireProvider(db);
@@ -2047,48 +2099,7 @@ export async function handle(method: string, path: string, body: unknown): Promi
   // --- Organization: venues (hotels & team-building grounds) ---
   if (method === "GET" && rawPath === "/organization/venues") {
     requireOrg(db);
-    const all = db.venues ?? [];
-    const q = (query.get("q") ?? "").trim().toLowerCase();
-    const type = query.get("type");
-    const loc = query.get("location");
-    const minCap = Number(query.get("minCapacity") ?? "0") || 0;
-    const staff = Number(query.get("staff") ?? "0") || 0;
-    const suggest = query.get("suggest") === "true";
-    const limit = Number(query.get("limit") ?? "0") || 0;
-
-    let list = all.slice();
-    if (type && type !== "All") list = list.filter((v) => v.type === type);
-    if (loc && loc !== "All") list = list.filter((v) => v.location === loc);
-    if (minCap) list = list.filter((v) => v.capacity >= minCap);
-    if (q) {
-      list = list.filter((v) =>
-        [v.name, v.type, v.location, v.address, ...v.amenities].some((f) => String(f).toLowerCase().includes(q)),
-      );
-    }
-
-    if (suggest) {
-      // Rank venues that fit the group first, then by rating, then by cheapest estimate.
-      if (staff) list = list.filter((v) => v.capacity >= staff);
-      if (loc && loc !== "All") {
-        // Prefer venues in the requested location but keep the rest as fallbacks.
-        list.sort((a, b2) => {
-          const la = a.location === loc ? 0 : 1;
-          const lb = b2.location === loc ? 0 : 1;
-          if (la !== lb) return la - lb;
-          if (b2.rating !== a.rating) return b2.rating - a.rating;
-          return venueEstimate(a, staff) - venueEstimate(b2, staff);
-        });
-      } else {
-        list.sort((a, b2) => (b2.rating - a.rating) || (venueEstimate(a, staff) - venueEstimate(b2, staff)));
-      }
-    } else {
-      list.sort((a, b2) => b2.rating - a.rating);
-    }
-
-    if (limit && list.length > limit) list = list.slice(0, limit);
-    const types = Array.from(new Set(all.map((v) => v.type)));
-    const locations = Array.from(new Set(all.map((v) => v.location))).sort();
-    return { venues: list.map((v) => venueView(v, staff)), types, locations };
+    return listVenues(db, query);
   }
 
   // --- Organization: departments ---

@@ -9,6 +9,7 @@ const NAV = [
   { to: "/provider/bids", label: "My bids", end: false },
   { to: "/provider/notifications", label: "Notifications", end: false },
   { to: "/provider/inquiries", label: "Inquiries", end: false },
+  { to: "/provider/venues", label: "Venues", end: false },
   { to: "/provider/reports", label: "Reports", end: false },
   { to: "/provider/profile", label: "Profile", end: false },
 ];
