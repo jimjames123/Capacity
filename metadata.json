@@ -1,0 +1,6 @@
+{
+  "name": "Capacity Lane — CPD Platform",
+  "description": "Uganda's public CPD platform. Track your continuing professional development, discover accredited courses, and share a verified record.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

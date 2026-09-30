@@ -7,8 +7,8 @@ import "./index.css";
 
 // The GitHub Pages build uses HashRouter so deep links work without server-side
 // SPA fallback; local/hosted builds use clean BrowserRouter paths.
-const STATIC_MODE = import.meta.env.VITE_STATIC === "true";
-const Router = STATIC_MODE ? HashRouter : BrowserRouter;
+const USE_HASH = import.meta.env.VITE_HASH_ROUTER === "true";
+const Router = USE_HASH ? HashRouter : BrowserRouter;
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
