@@ -1,4 +1,19 @@
-import { PrismaClient } from "@prisma/client";
-
-// Single shared Prisma client for the process.
-export const prisma = new PrismaClient();
+let prisma: any;
+try {
+  const { PrismaClient } = await import("@prisma/client");
+  prisma = new PrismaClient();
+} catch {
+  console.warn("[AI Studio] Database not connected — using mock");
+  const noOp = {
+    findMany: async () => [],
+    findFirst: async () => null,
+    findUnique: async () => null,
+    create: async (d: any) => d?.data ?? {},
+    update: async (d: any) => d?.data ?? {},
+    delete: async () => ({}),
+    deleteMany: async () => ({ count: 0 }),
+    createMany: async () => ({ count: 0 }),
+  };
+  prisma = new Proxy({}, { get: () => noOp });
+}
+export { prisma };

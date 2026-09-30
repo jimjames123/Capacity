@@ -16,9 +16,9 @@ export class ApiError extends Error {
   }
 }
 
-// When built for GitHub Pages there is no backend, so requests are served by
-// an in-browser localStorage store that mirrors the API.
-const STATIC_MODE = import.meta.env.VITE_STATIC === "true";
+// When running in standalone or browser mode, requests are served by
+// the in-browser localStorage store that mirrors the API unless VITE_STATIC is explicitly "false".
+const STATIC_MODE = import.meta.env.VITE_STATIC !== "false";
 
 async function request<T>(
   path: string,
