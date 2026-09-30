@@ -3,14 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "description": "Capacity Lane — Uganda's public CPD platform",
-  "workspaces": [
-    "client",
-    "server"
-  ],
   "scripts": {
-    "dev": "npm run dev --workspace=client",
-    "build": "npm run build --workspace=client",
-    "preview": "npm run preview --workspace=client",
-    "lint": "npm run --prefix client build"
+    "dev": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "preview": "npm --prefix client run preview",
+    "lint": "npm --prefix client run build"
   }
 }
