@@ -495,6 +495,10 @@ function seed(): DB {
     { id: "tn1", organizationId: "org_nwsc", title: "Leadership development programme for 40 managers", description: "We are seeking an accredited provider to design and deliver a leadership development programme for 40 mid-level managers across our regional offices. CPD points required.", category: "HR", deliveryMode: "Hybrid", budget: "UGX 48,000,000", seats: 40, deadline: iso("2026-06-15"), status: "OPEN" },
     { id: "tn2", organizationId: "org_stanbic", title: "IFRS & risk refresher for finance team", description: "Two-day in-house refresher on IFRS 2026 amendments and internal controls for a finance team of 22. Must carry CPD accreditation.", category: "Finance", deliveryMode: "In-person", budget: "UGX 22,000,000", seats: 22, deadline: iso("2026-05-30"), status: "OPEN" },
     { id: "tn3", organizationId: "org_ura", title: "Digital marketing upskilling for comms unit", description: "Online, self-paced digital marketing analytics training for our 12-person communications unit, with a live workshop to close.", category: "Marketing", deliveryMode: "Online", budget: "UGX 9,000,000", seats: 12, deadline: iso("2026-06-05"), status: "OPEN" },
+    { id: "tn4", organizationId: "org_nwsc", title: "Civil Infrastructure & Safety Compliance Audit", description: "Comprehensive audit and structural safety training for 18 regional field engineers. Must cover Eurocode standards and local statutory requirements.", category: "Engineering", deliveryMode: "In-person", budget: "UGX 32,000,000", seats: 18, deadline: iso("2026-06-25"), status: "OPEN" },
+    { id: "tn5", organizationId: "org_stanbic", title: "Cybersecurity & Data Protection Act 2019 Compliance", description: "Practical workshop on personal data privacy compliance, threat mitigation, and incident escalation protocols for IT and branch operations.", category: "Technology", deliveryMode: "Hybrid", budget: "UGX 26,000,000", seats: 30, deadline: iso("2026-07-01"), status: "OPEN" },
+    { id: "tn6", organizationId: "org_ura", title: "Public Procurement & PPDA Dispute Resolution", description: "Three-day intensive course for 16 procurement and contract officers on standard bidding documents, bid evaluation pitfalls, and administrative review proceedings.", category: "Legal & Procurement", deliveryMode: "In-person", budget: "UGX 18,500,000", seats: 16, deadline: iso("2026-06-18"), status: "OPEN" },
+    { id: "tn7", organizationId: "org_nwsc", title: "Occupational Health & Ergonomic Hazard Control", description: "Certification workshop for safety reps and regional facility managers covering first response, risk containment, and workplace ergonomics.", category: "Health & Safety", deliveryMode: "In-person", budget: "UGX 15,000,000", seats: 25, deadline: iso("2026-07-15"), status: "OPEN" },
   ];
 
   const bids: DbBid[] = [
@@ -569,7 +573,19 @@ function load(): DB {
   const raw = localStorage.getItem(LS_KEY);
   if (raw) {
     try {
-      return JSON.parse(raw) as DB;
+      const parsed = JSON.parse(raw) as DB;
+      if (Array.isArray(parsed.tenders)) {
+        const freshSeed = seed();
+        let changed = false;
+        for (const t of freshSeed.tenders) {
+          if (!parsed.tenders.some((x) => x.id === t.id)) {
+            parsed.tenders.push(t);
+            changed = true;
+          }
+        }
+        if (changed) save(parsed);
+      }
+      return parsed;
     } catch {
       /* fall through to reseed */
     }
